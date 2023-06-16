@@ -20,7 +20,7 @@ type Post struct {
 	Created_at time.Time `json:"createdAt"`
 }
 
-type Comments struct {
+type Comment struct {
 	ID         int64     `json:"id"`
 	Text       string    `json:"text"`
 	UserID     int64     `json:"userID"`
@@ -36,11 +36,10 @@ type Follow struct {
 }
 
 type CreateUserRequest struct {
-	Firstname  string    `json:"firstName"`
-	Lastname   string    `json:"lastName"`
-	Email      string    `json:"email"`
-	Password   string    `json:"password"`
-	Created_at time.Time `json:"createdAt"`
+	Firstname string `json:"firstName"`
+	Lastname  string `json:"lastName"`
+	Email     string `json:"email"`
+	Password  string `json:"password"`
 }
 
 type CreatePostRequest struct {
@@ -52,6 +51,7 @@ type CreatePostRequest struct {
 type CreateCommentRequest struct {
 	Text   string `json:"text"`
 	UserID int64  `json:"userID"`
+	PostID int64  `json:"postID"`
 }
 
 type FollowRequest struct {

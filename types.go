@@ -18,6 +18,7 @@ type Post struct {
 	MediaUrl   string    `json:"mediaUrl"`
 	Content    string    `json:"content"`
 	Created_at time.Time `json:"createdAt"`
+	Edited_at  time.Time `json:"editedAt"`
 }
 
 type Comment struct {
@@ -44,8 +45,8 @@ type CreateUserRequest struct {
 
 type CreatePostRequest struct {
 	UserID   int64  `json:"userID"`
-	MediaUrl string `json:"mediaUrl"`
 	Content  string `json:"content"`
+	MediaUrl string `json:"mediaUrl"`
 }
 
 type CreateCommentRequest struct {

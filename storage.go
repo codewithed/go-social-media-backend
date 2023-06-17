@@ -72,11 +72,7 @@ func (s *PostgresStore) CreateTables() error {
 	`
 
 	_, err := s.db.Exec(query)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 // CRUD OPERATIONS FOR USERS
@@ -116,30 +112,48 @@ func (s *PostgresStore) CreateUser(user *User) error {
 	 VALUES ($1, $2, $3, $4, $5)`,
 		user.Firstname, user.Lastname, user.Email, user.Bio, user.PasswordHash)
 
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (s *PostgresStore) DeleteUser(id int) error {
 	_, err := s.db.Exec(`DELETE FROM users WHERE id = $1`, id)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
-func (s *PostgresStore) UpdateUser(id int, req CreateUserRequest) error {
-	_, err := s.db.Exec(`INSERT INTO users (firstName, lastName, email, bio, passwordHash)
-	 VALUES ($1, $2, $3, $4, $5)`,
-		req.Firstname, req.Lastname, req.Email, req.Bio, req.PasswordHash)
+func (s *PostgresStore) UpdateUser(id int, user *User) error {
+	if user.Firstname != "" {
+		_, err := s.db.Exec(`UPDATE users SET firstName = $1 WHERE id = $2`, user.Firstname, id)
+		if err != nil {
+			return err
+		}
+	}
 
-	if err != nil {
-		return err
+	if user.Lastname != "" {
+		_, err := s.db.Exec(`UPDATE users SET lastName = $1 WHERE id = $2`, user.Lastname, id)
+		if err != nil {
+			return err
+		}
+	}
+
+	if user.Email != "" {
+		_, err := s.db.Exec(`UPDATE users SET email = $1 WHERE id = $2`, user.Email, id)
+		if err != nil {
+			return err
+		}
+	}
+
+	if user.Bio != "" {
+		_, err := s.db.Exec(`UPDATE users SET bio = $1 WHERE id = $2`, user.Bio, id)
+		if err != nil {
+			return err
+		}
+	}
+
+	if user.PasswordHash != "" {
+		_, err := s.db.Exec(`UPDATE users SET firstname = $1 WHERE id = $2`, user.PasswordHash, id)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -147,61 +161,173 @@ func (s *PostgresStore) UpdateUser(id int, req CreateUserRequest) error {
 
 // CRUD OPERATIONS FOR POSTS
 func (s *PostgresStore) GetAllPosts() ([]*Post, error) {
-	return nil, nil
+	rows, err := s.db.Query(`SELECT * FROM posts`)
+	if err != nil {
+		return nil, err
+	}
+
+	posts := []*Post{}
+	for rows.Next() {
+		post, err := ScanIntoPost(rows)
+		if err != nil {
+			return nil, err
+		}
+		posts = append(posts, post)
+	}
+
+	return posts, nil
 }
 
 func (s *PostgresStore) GetPost(id int) (*Post, error) {
+	rows, err := s.db.Query(`SELECT * FROM posts WHERE id = $1`, id)
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		return ScanIntoPost(rows)
+	}
+
 	return nil, nil
 }
 
 func (s *PostgresStore) CreatePost(req *CreatePostRequest) error {
-	return nil
+	_, err := s.db.Exec(`INSERT INTO posts (userID, mediaUrl, content) 
+	VALUES ($1, $2, $3)`,
+		req.UserID,
+		req.MediaUrl,
+		req.Content)
+
+	return err
 }
 
 func (s *PostgresStore) DeletePost(id int) error {
-	return nil
+	_, err := s.db.Exec(`DELETE FROM posts WHERE id = $1`, id)
+	return err
 }
 
-func (s *PostgresStore) UpdatePost(req int) error {
+func (s *PostgresStore) UpdatePost(id int, req *CreatePostRequest) error {
+	if req.Content != "" {
+		_, err := s.db.Exec(`UPDATE users SET content = $1 WHERE id = $2`, req.Content, id)
+		if err != nil {
+			return err
+		}
+	}
+
+	if req.MediaUrl != "" {
+		_, err := s.db.Exec(`UPDATE users SET mediaUrl = $1 WHERE id = $2`, req.MediaUrl, id)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
 // CRUD OPERATIONS FOR COMMENTS
 func (s *PostgresStore) GetAllComments() ([]*Comment, error) {
-	return nil, nil
+	rows, err := s.db.Query(`SELECT * FROM comments`)
+	if err != nil {
+		return nil, err
+	}
+
+	comments := []*Comment{}
+	for rows.Next() {
+		comment, err := ScanIntoComment(rows)
+		if err != nil {
+			return nil, err
+		}
+		comments = append(comments, comment)
+	}
+
+	return comments, nil
 }
 
 func (s *PostgresStore) GetComment(id int) (*Comment, error) {
+	rows, err := s.db.Query(`SELECT * FROM comments WHERE id = $1`, id)
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		return ScanIntoComment(rows)
+	}
+
 	return nil, nil
 }
 
 func (s *PostgresStore) CreateComment(req *CreateCommentRequest) error {
-	return nil
+	_, err := s.db.Exec(`INSERT INTO comments (text, userID, postID) 
+	VALUES ($1, $2, $3)`,
+		req.Text,
+		req.UserID,
+		req.PostID)
+
+	return err
 }
 
 func (s *PostgresStore) DeleteComment(id int) error {
-	return nil
+	_, err := s.db.Exec(`DELETE FROM comments WHERE id = $1`, id)
+	return err
 }
 
-func (s *PostgresStore) UpdateComment(id int) error {
+func (s *PostgresStore) UpdateComment(id int, req *CreateCommentRequest) error {
+	if req.Text != "" {
+		_, err := s.db.Exec(`UPDATE comments SET text = $1 WHERE id = $2`,
+			req.Text, id)
+
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
 // CRUD OPERATIONS FOR FOLLOWS
 func (s *PostgresStore) CreateFollow(req *FollowRequest) error {
-	return nil
+	_, err := s.db.Exec(`INSERT INTO follows (userID, followerID) 
+	VALUES ($1, $2)`,
+		req.UserID,
+		req.FollowerID)
+
+	return err
 }
 
 func (s *PostgresStore) GetFollow(id int) (*Follow, error) {
+	rows, err := s.db.Query(`SELECT * FROM follows WHERE id = $1`, id)
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		return ScanIntoFollow(rows)
+	}
+
 	return nil, nil
 }
 
 func (s *PostgresStore) GetAllFollows() ([]*Follow, error) {
-	return nil, nil
+	rows, err := s.db.Query(`SELECT * FROM follows`)
+	if err != nil {
+		return nil, err
+	}
+
+	follows := []*Follow{}
+	for rows.Next() {
+		follow, err := ScanIntoFollow(rows)
+		if err != nil {
+			return nil, err
+		}
+		follows = append(follows, follow)
+	}
+
+	return follows, nil
 }
 
 func (s *PostgresStore) DeleteFollow(id int) error {
-	return nil
+	_, err := s.db.Exec(`DELETE FROM comments WHERE id = $1`, id)
+	return err
 }
 
 // FUNCTIONS FOR CREATING STRUCTS FROM SQL ROWS
@@ -231,4 +357,29 @@ func ScanIntoPost(rows *sql.Rows) (*Post, error) {
 	)
 
 	return post, err
+}
+
+func ScanIntoComment(rows *sql.Rows) (*Comment, error) {
+	comment := new(Comment)
+	err := rows.Scan(
+		&comment.ID,
+		&comment.Text,
+		&comment.UserID,
+		&comment.PostID,
+		&comment.Created_at,
+	)
+
+	return comment, err
+}
+
+func ScanIntoFollow(rows *sql.Rows) (*Follow, error) {
+	follow := new(Follow)
+	err := rows.Scan(
+		&follow.ID,
+		&follow.UserID,
+		&follow.FollowerID,
+		&follow.Created_at,
+	)
+
+	return follow, err
 }

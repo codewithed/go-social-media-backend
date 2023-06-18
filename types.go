@@ -1,6 +1,11 @@
 package main
 
-import "time"
+import (
+	"math/rand"
+	"time"
+
+	"golang.org/x/crypto/bcrypt"
+)
 
 type User struct {
 	ID           int64     `json:"id"`
@@ -40,6 +45,7 @@ type CreateUserRequest struct {
 	Firstname string `json:"firstName"`
 	Lastname  string `json:"lastName"`
 	Email     string `json:"email"`
+	Bio       string `json:"bio"`
 	Password  string `json:"password"`
 }
 
@@ -58,4 +64,21 @@ type CreateCommentRequest struct {
 type FollowRequest struct {
 	UserID     int64 `json:"userID"`
 	FollowerID int64 `json:"followerID"`
+}
+
+func NewUser(req *CreateUserRequest) (*User, error) {
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.MaxCost)
+	if err != nil {
+		return nil, err
+	}
+
+	return &User{
+		ID:           int64(rand.Intn(10000)),
+		Firstname:    req.Firstname,
+		Lastname:     req.Lastname,
+		Email:        req.Email,
+		Bio:          req.Bio,
+		PasswordHash: string(passwordHash),
+		Created_at:   time.Now().UTC(),
+	}, nil
 }

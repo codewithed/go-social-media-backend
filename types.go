@@ -82,3 +82,7 @@ func NewUser(req *CreateUserRequest) (*User, error) {
 		Created_at:   time.Now().UTC(),
 	}, nil
 }
+
+func (user *User) ValidatePassword(pw string) bool {
+	return bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(pw)) == nil
+}

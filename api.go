@@ -34,151 +34,193 @@ func (s *ApiServer) Run() {
 
 func (s *ApiServer) handleUsers(w http.ResponseWriter, r *http.Request) error {
 	if r.Method == "GET" {
-		users, err := s.Store.GetAllUsers()
-		if err != nil {
-			return err
-		}
-
-		return WriteJson(w, http.StatusOK, users)
+		return s.handleGetUsers(w, r)
 	}
 
 	if r.Method == "POST" {
-		req := new(CreateUserRequest)
-		if err := json.NewDecoder(r.Body).Decode(req); err != nil {
-			return err
-		}
-
-		user, err := NewUser(req)
-		if err != nil {
-			return err
-		}
-
-		if err := s.Store.CreateUser(user); err != nil {
-			return err
-		}
-		return WriteJson(w, http.StatusOK, user)
+		return s.handleCreateUser(w, r)
 	}
 	return nil
 }
 
 func (s *ApiServer) handleUsersByID(w http.ResponseWriter, r *http.Request) error {
 	if r.Method == "GET" {
-		id, err := getID(r)
-		if err != nil {
-			return err
-		}
-
-		user, err := s.Store.GetUser(id)
-		if err != nil {
-			return err
-		}
-
-		return WriteJson(w, http.StatusOK, user)
+		return s.handleGetUserByID(w, r)
 	}
 
 	if r.Method == "PUT" || r.Method == "PATCH" {
-		id, err := getID(r)
-		if err != nil {
-			return err
-		}
-
-		req := new(CreateUserRequest)
-		if err := json.NewDecoder(r.Body).Decode(req); err != nil {
-			return err
-		}
-
-		user, err := NewUser(req)
-		if err != nil {
-			return err
-		}
-
-		if err := s.Store.UpdateUser(id, user); err != nil {
-			return err
-		}
-		return WriteJson(w, http.StatusOK, user)
+		return s.handleUpdateUserByID(w, r)
 	}
 
 	if r.Method == "DELETE" {
-		id, err := getID(r)
-		if err != nil {
-			return err
-		}
-
-		if err := s.Store.DeleteUser(id); err != nil {
-			return err
-		}
-		deletedMsg := fmt.Sprintf("User with id: %d deleted successfully", id)
-		return WriteJson(w, http.StatusOK, deletedMsg)
+		return s.handleDeleteUserByID(w, r)
 	}
 	return nil
 }
 
 func (s *ApiServer) handlePosts(w http.ResponseWriter, r *http.Request) error {
 	if r.Method == "GET" {
-		users, err := s.Store.GetAllPosts()
-		if err != nil {
-			return err
-		}
-
-		return WriteJson(w, http.StatusOK, users)
+		return s.handleGetPosts(w, r)
 	}
 
 	if r.Method == "POST" {
-		req := new(CreatePostRequest)
-
-		if err := s.Store.CreatePost(req); err != nil {
-			return err
-		}
-
-		return WriteJson(w, http.StatusOK, req)
+		return s.handleCreatePost(w, r)
 	}
 	return nil
 }
 
 func (s *ApiServer) handlePostsByID(w http.ResponseWriter, r *http.Request) error {
 	if r.Method == "GET" {
-		id, err := getID(r)
-		if err != nil {
-			return err
-		}
-
-		post, err := s.Store.GetPost(id)
-		if err != nil {
-			return err
-		}
-		return WriteJson(w, http.StatusOK, post)
+		return s.handleGetPostByID(w, r)
 	}
 
 	if r.Method == "PUT" || r.Method == "PATCH" {
-		id, err := getID(r)
-		if err != nil {
-			return err
-		}
-
-		req := new(CreatePostRequest)
-		if err := json.NewDecoder(r.Body).Decode(req); err != nil {
-			return err
-		}
-
-		if err := s.Store.UpdatePost(id, req); err != nil {
-			return err
-		}
-		return WriteJson(w, http.StatusOK, req)
+		return s.handleUpdatePostByID(w, r)
 	}
 
 	if r.Method == "DELETE" {
-		id, err := getID(r)
-		if err != nil {
-			return err
-		}
-
-		if err := s.Store.DeletePost(id); err != nil {
-			return err
-		}
-		deleteMsg := fmt.Sprintf("Post with id: %d deleted successfully", id)
-		return WriteJson(w, http.StatusOK, deleteMsg)
+		return s.handleDeletePostByID(w, r)
 	}
 	return nil
+}
+
+func (s *ApiServer) handleGetUsers(w http.ResponseWriter, r *http.Request) error {
+	users, err := s.Store.GetAllUsers()
+	if err != nil {
+		return err
+	}
+
+	return WriteJson(w, http.StatusOK, users)
+}
+
+func (s *ApiServer) handleCreateUser(w http.ResponseWriter, r *http.Request) error {
+	req := new(CreateUserRequest)
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		return err
+	}
+
+	user, err := NewUser(req)
+	if err != nil {
+		return err
+	}
+
+	if err := s.Store.CreateUser(user); err != nil {
+		return err
+	}
+	return WriteJson(w, http.StatusOK, user)
+}
+
+func (s *ApiServer) handleGetUserByID(w http.ResponseWriter, r *http.Request) error {
+	id, err := getID(r)
+	if err != nil {
+		return err
+	}
+
+	user, err := s.Store.GetUser(id)
+	if err != nil {
+		return err
+	}
+
+	return WriteJson(w, http.StatusOK, user)
+}
+
+func (s *ApiServer) handleUpdateUserByID(w http.ResponseWriter, r *http.Request) error {
+	id, err := getID(r)
+	if err != nil {
+		return err
+	}
+
+	req := new(CreateUserRequest)
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		return err
+	}
+
+	user, err := NewUser(req)
+	if err != nil {
+		return err
+	}
+
+	if err := s.Store.UpdateUser(id, user); err != nil {
+		return err
+	}
+	return WriteJson(w, http.StatusOK, user)
+
+}
+
+func (s *ApiServer) handleDeleteUserByID(w http.ResponseWriter, r *http.Request) error {
+	id, err := getID(r)
+	if err != nil {
+		return err
+	}
+
+	if err := s.Store.DeleteUser(id); err != nil {
+		return err
+	}
+	deletedMsg := fmt.Sprintf("User with id: %d deleted successfully", id)
+	return WriteJson(w, http.StatusOK, deletedMsg)
+
+}
+
+func (s *ApiServer) handleGetPosts(w http.ResponseWriter, r *http.Request) error {
+	users, err := s.Store.GetAllPosts()
+	if err != nil {
+		return err
+	}
+
+	return WriteJson(w, http.StatusOK, users)
+}
+
+func (s *ApiServer) handleCreatePost(w http.ResponseWriter, r *http.Request) error {
+	req := new(CreatePostRequest)
+
+	if err := s.Store.CreatePost(req); err != nil {
+		return err
+	}
+
+	return WriteJson(w, http.StatusOK, req)
+}
+
+func (s *ApiServer) handleGetPostByID(w http.ResponseWriter, r *http.Request) error {
+	id, err := getID(r)
+	if err != nil {
+		return err
+	}
+
+	post, err := s.Store.GetPost(id)
+	if err != nil {
+		return err
+	}
+	return WriteJson(w, http.StatusOK, post)
+}
+
+func (s *ApiServer) handleUpdatePostByID(w http.ResponseWriter, r *http.Request) error {
+	id, err := getID(r)
+	if err != nil {
+		return err
+	}
+
+	req := new(CreatePostRequest)
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		return err
+	}
+
+	if err := s.Store.UpdatePost(id, req); err != nil {
+		return err
+	}
+	return WriteJson(w, http.StatusOK, req)
+}
+
+func (s *ApiServer) handleDeletePostByID(w http.ResponseWriter, r *http.Request) error {
+	id, err := getID(r)
+	if err != nil {
+		return err
+	}
+
+	if err := s.Store.DeletePost(id); err != nil {
+		return err
+	}
+	deleteMsg := fmt.Sprintf("Post with id: %d deleted successfully", id)
+	return WriteJson(w, http.StatusOK, deleteMsg)
 }
 
 func makeHttpHandlerFunc(f apiFunc) http.HandlerFunc {

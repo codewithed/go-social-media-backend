@@ -7,6 +7,21 @@ import (
 )
 
 type Storage interface {
+	GetAllUsers() ([]*User, error)
+	GetUser(id int) (*User, error)
+	CreateUser(user *User) error
+	DeleteUser(id int) error
+	UpdateUser(id int, user *User) error
+	GetAllPosts() ([]*Post, error)
+	GetPost(id int) (*Post, error)
+	CreatePost(req *CreatePostRequest) error
+	DeletePost(id int) error
+	UpdatePost(id int, req *CreatePostRequest) error
+	GetAllComments() ([]*Comment, error)
+	GetComment(id int) (*Comment, error)
+	CreateComment(req *CreateCommentRequest)
+	DeleteComment(id int) error
+	UpdateComment(id int, req *CreateCommentRequest)
 }
 
 type PostgresStore struct {

@@ -29,6 +29,8 @@ func (s *ApiServer) Run() {
 	r.HandleFunc("/users/{id}", makeHttpHandlerFunc(s.handleUsersByID))
 	r.HandleFunc("/posts", makeHttpHandlerFunc(s.handlePosts))
 	r.HandleFunc("/posts/{id}", makeHttpHandlerFunc(s.handlePostsByID))
+	r.HandleFunc("/comments", makeHttpHandlerFunc(s.handleComments))
+	r.HandleFunc("/comments/{id}", makeHttpHandlerFunc(s.handleCommentsByID))
 	http.ListenAndServe(s.ListenAddr, r)
 }
 
@@ -80,6 +82,32 @@ func (s *ApiServer) handlePostsByID(w http.ResponseWriter, r *http.Request) erro
 
 	if r.Method == "DELETE" {
 		return s.handleDeletePostByID(w, r)
+	}
+	return nil
+}
+
+func (s *ApiServer) handleComments(w http.ResponseWriter, r *http.Request) error {
+	if r.Method == "GET" {
+		return s.handleGetAllComments(w, r)
+	}
+
+	if r.Method == "POST" {
+		return s.handleCreateComment(w, r)
+	}
+	return nil
+}
+
+func (s *ApiServer) handleCommentsByID(w http.ResponseWriter, r *http.Request) error {
+	if r.Method == "GET" {
+		return s.handleGetCommentByID(w, r)
+	}
+
+	if r.Method == "UPDATE" {
+		return s.handleUpdateCommentByID(w, r)
+	}
+
+	if r.Method == "DELETE" {
+		return s.handleDeleteCommentByID(w, r)
 	}
 	return nil
 }
@@ -220,6 +248,67 @@ func (s *ApiServer) handleDeletePostByID(w http.ResponseWriter, r *http.Request)
 		return err
 	}
 	deleteMsg := fmt.Sprintf("Post with id: %d deleted successfully", id)
+	return WriteJson(w, http.StatusOK, deleteMsg)
+}
+
+func (s *ApiServer) handleGetAllComments(w http.ResponseWriter, r *http.Request) error {
+	comments, err := s.Store.GetAllComments()
+	if err != nil {
+		return err
+	}
+	return WriteJson(w, http.StatusOK, comments)
+}
+
+func (s *ApiServer) handleCreateComment(w http.ResponseWriter, r *http.Request) error {
+	req := new(CreateCommentRequest)
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		return err
+	}
+	if err := s.Store.CreateComment(req); err != nil {
+		return err
+	}
+	return WriteJson(w, http.StatusOK, req)
+}
+
+func (s *ApiServer) handleUpdateCommentByID(w http.ResponseWriter, r *http.Request) error {
+	id, err := getID(r)
+	if err != nil {
+		return err
+	}
+
+	req := new(CreateCommentRequest)
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		return err
+	}
+	if err := s.Store.UpdateComment(id, req); err != nil {
+		return err
+	}
+	return WriteJson(w, http.StatusOK, req)
+}
+
+func (s *ApiServer) handleGetCommentByID(w http.ResponseWriter, r *http.Request) error {
+	id, err := getID(r)
+	if err != nil {
+		return err
+	}
+
+	comment, err := s.Store.GetComment(id)
+	if err != nil {
+		return err
+	}
+	return WriteJson(w, http.StatusOK, comment)
+}
+
+func (s *ApiServer) handleDeleteCommentByID(w http.ResponseWriter, r *http.Request) error {
+	id, err := getID(r)
+	if err != nil {
+		return err
+	}
+
+	if err := s.Store.DeleteComment(id); err != nil {
+		return err
+	}
+	deleteMsg := fmt.Sprintf("Deleted comment %v succesfully", id)
 	return WriteJson(w, http.StatusOK, deleteMsg)
 }
 

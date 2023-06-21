@@ -29,7 +29,7 @@ type PostgresStore struct {
 }
 
 func NewPostgresStore() (*PostgresStore, error) {
-	connStr := "user=postgres dbname=go-soc password=go-soc999 sslmode=verify-full"
+	connStr := "user=postgres dbname=postgres password=gosoc999 sslmode=disable"
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		return nil, err
@@ -49,8 +49,7 @@ func (s *PostgresStore) Init() error {
 func (s *PostgresStore) CreateTables() error {
 	query := `CREATE TABLE users (
 		id SERIAL PRIMARY KEY,
-		firstName VARCHAR(255) NOT NULL,
-		lastName VARCHAR(255) NOT NULL,
+		name VARCHAR(255) NOT NULL,
 		email VARCHAR(255) NOT NULL,
 		bio VARCHAR(255),
 		passwordHash VARCHAR(1000) NOT NULL,
@@ -123,9 +122,9 @@ func (s *PostgresStore) GetUser(id int) (*User, error) {
 }
 
 func (s *PostgresStore) CreateUser(user *User) error {
-	_, err := s.db.Exec(`INSERT INTO users (firstName, lastName, email, bio, passwordHash)
-	 VALUES ($1, $2, $3, $4, $5)`,
-		user.Firstname, user.Lastname, user.Email, user.Bio, user.PasswordHash)
+	_, err := s.db.Exec(`INSERT INTO users (name, email, bio, passwordHash)
+	 VALUES ($1, $2, $3, $4)`,
+		user.Name, user.Email, user.Bio, user.PasswordHash)
 
 	return err
 }
@@ -136,15 +135,8 @@ func (s *PostgresStore) DeleteUser(id int) error {
 }
 
 func (s *PostgresStore) UpdateUser(id int, user *User) error {
-	if user.Firstname != "" {
-		_, err := s.db.Exec(`UPDATE users SET firstName = $1 WHERE id = $2`, user.Firstname, id)
-		if err != nil {
-			return err
-		}
-	}
-
-	if user.Lastname != "" {
-		_, err := s.db.Exec(`UPDATE users SET lastName = $1 WHERE id = $2`, user.Lastname, id)
+	if user.Name != "" {
+		_, err := s.db.Exec(`UPDATE users SET name = $1 WHERE id = $2`, user.Name, id)
 		if err != nil {
 			return err
 		}
@@ -165,7 +157,7 @@ func (s *PostgresStore) UpdateUser(id int, user *User) error {
 	}
 
 	if user.PasswordHash != "" {
-		_, err := s.db.Exec(`UPDATE users SET firstname = $1 WHERE id = $2`, user.PasswordHash, id)
+		_, err := s.db.Exec(`UPDATE users SET passwordHash = $1 WHERE id = $2`, user.PasswordHash, id)
 		if err != nil {
 			return err
 		}
@@ -350,8 +342,21 @@ func ScanIntoUser(rows *sql.Rows) (*User, error) {
 	user := new(User)
 	err := rows.Scan(
 		&user.ID,
-		&user.Firstname,
-		&user.Lastname,
+		&user.Name,
+		&user.Email,
+		&user.Bio,
+		&user.PasswordHash,
+		&user.Created_at,
+	)
+
+	return user, err
+}
+
+func ScanIntoUserSafely(rows *sql.Rows) (*User, error) {
+	user := new(User)
+	err := rows.Scan(
+		&user.ID,
+		&user.Name,
 		&user.Email,
 		&user.Bio,
 		&user.PasswordHash,

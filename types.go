@@ -9,11 +9,10 @@ import (
 
 type User struct {
 	ID           int64     `json:"id"`
-	Firstname    string    `json:"firstName"`
-	Lastname     string    `json:"lastName"`
+	Name         string    `json:"name"`
 	Email        string    `json:"email"`
 	Bio          string    `json:"bio"`
-	PasswordHash string    `json:"passwordHash"`
+	PasswordHash string    `json:"-"`
 	Created_at   time.Time `json:"createdAt"`
 }
 
@@ -42,11 +41,10 @@ type Follow struct {
 }
 
 type CreateUserRequest struct {
-	Firstname string `json:"firstName"`
-	Lastname  string `json:"lastName"`
-	Email     string `json:"email"`
-	Bio       string `json:"bio"`
-	Password  string `json:"password"`
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Bio      string `json:"bio"`
+	Password string `json:"password"`
 }
 
 type CreatePostRequest struct {
@@ -74,8 +72,7 @@ func NewUser(req *CreateUserRequest) (*User, error) {
 
 	return &User{
 		ID:           int64(rand.Intn(10000)),
-		Firstname:    req.Firstname,
-		Lastname:     req.Lastname,
+		Name:         req.Name,
 		Email:        req.Email,
 		Bio:          req.Bio,
 		PasswordHash: string(passwordHash),

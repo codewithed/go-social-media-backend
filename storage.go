@@ -63,7 +63,7 @@ func (s *PostgresStore) CreateTables() error {
 		content VARCHAR(255) NOT NULL,
 		mediaUrl VARCHAR(10000),
 		created_at timestamptz NOT NULL,
-		FOREIGN KEY (userID) REFERENCES users (id)
+		FOREIGN KEY (userID) REFERENCES users (id) ON DELETE CASCADE
 	);
 
 	CREATE TABLE comments (
@@ -72,8 +72,8 @@ func (s *PostgresStore) CreateTables() error {
 		postID BIGINT NOT NULL,
 		content VARCHAR(255) NOT NULL,
 		created_at timestamptz NOT NULL,
-		CONSTRAINT fk_userID FOREIGN KEY (userID) REFERENCES users (id),
-		CONSTRAINT fk_postID FOREIGN KEY (postID) REFERENCES posts (id)
+		CONSTRAINT fk_userID FOREIGN KEY (userID) REFERENCES users (id) ON DELETE CASCADE,
+		CONSTRAINT fk_postID FOREIGN KEY (postID) REFERENCES posts (id) ON DELETE CASCADE
 	);
 
 	CREATE TABLE follows (
@@ -81,8 +81,8 @@ func (s *PostgresStore) CreateTables() error {
 		userID BIGINT NOT NULL,
 		followed_by_ID BIGINT NOT NULL,
 		created_at timestamptz NOT NULL,
-		CONSTRAINT fk_userID FOREIGN KEY (userID) REFERENCES users (id),
-		CONSTRAINT fk_followed_by_ID FOREIGN KEY (followed_by_ID) REFERENCES users (id)
+		CONSTRAINT fk_userID FOREIGN KEY (userID) REFERENCES users (id) ON DELETE CASCADE,
+		CONSTRAINT fk_followed_by_ID FOREIGN KEY (followed_by_ID) REFERENCES users (id) ON DELETE CASCADE
 	);
 	`
 

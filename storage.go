@@ -19,9 +19,9 @@ type Storage interface {
 	UpdatePost(id int, req *CreatePostRequest) error
 	GetAllComments() ([]*Comment, error)
 	GetComment(id int) (*Comment, error)
-	CreateComment(req *CreateCommentRequest)
+	CreateComment(req *CreateCommentRequest) error
 	DeleteComment(id int) error
-	UpdateComment(id int, req *CreateCommentRequest)
+	UpdateComment(id int, req *CreateCommentRequest) error
 }
 
 type PostgresStore struct {

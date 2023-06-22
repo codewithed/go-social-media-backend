@@ -64,6 +64,16 @@ type FollowRequest struct {
 	FollowerID int64 `json:"followerID"`
 }
 
+type LoginRequest struct {
+	ID       int64  `json:"id"`
+	Password string `json:"password"`
+}
+
+type LoginResponse struct {
+	Name  string `json:"name"`
+	Token string `json:"token"`
+}
+
 func NewUser(req *CreateUserRequest) (*User, error) {
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.MaxCost)
 	if err != nil {
@@ -80,6 +90,6 @@ func NewUser(req *CreateUserRequest) (*User, error) {
 	}, nil
 }
 
-func (user *User) ValidatePassword(pw string) bool {
+func (user *User) ValidPassword(pw string) bool {
 	return bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(pw)) == nil
 }

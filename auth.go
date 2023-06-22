@@ -75,6 +75,6 @@ func withJWTAuth(handlerFunc http.HandlerFunc, s Storage) http.HandlerFunc {
 }
 
 func permissionDenied(w http.ResponseWriter) {
-	WriteJson(w, http.StatusForbidden, ApiError{Error: "permission denied"})
+	WriteJson(w, http.StatusForbidden, &ApiError{Error: "permission denied"})
 	return
 }

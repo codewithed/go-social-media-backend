@@ -25,13 +25,45 @@ func NewApiServer(addr string, store Storage) (*ApiServer, error) {
 func (s *ApiServer) Run() {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
+	r.HandleFunc("/login", makeHttpHandlerFunc(s.handleLogin))
 	r.HandleFunc("/users", makeHttpHandlerFunc(s.handleUsers))
-	r.HandleFunc("/users/{id}", makeHttpHandlerFunc(s.handleUsersByID))
+	r.HandleFunc("/users/{id}", withJWTAuth(makeHttpHandlerFunc(s.handleUsersByID), s.Store))
 	r.HandleFunc("/posts", makeHttpHandlerFunc(s.handlePosts))
 	r.HandleFunc("/posts/{id}", makeHttpHandlerFunc(s.handlePostsByID))
 	r.HandleFunc("/comments", makeHttpHandlerFunc(s.handleComments))
 	r.HandleFunc("/comments/{id}", makeHttpHandlerFunc(s.handleCommentsByID))
 	http.ListenAndServe(s.ListenAddr, r)
+}
+
+func (s *ApiServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
+	if r.Method != "POST" {
+		return WriteJson(w, http.StatusBadGateway, &ApiError{Error: "Invalid method"})
+	}
+	req := new(LoginRequest)
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		return err
+	}
+
+	user, err := s.Store.GetUser(int(req.ID))
+	if err != nil {
+		return err
+	}
+
+	if !user.ValidPassword(req.Password) {
+		return WriteJson(w, http.StatusBadRequest, &ApiError{Error: "Access denied"})
+	}
+
+	token, err := CreateJWT(user)
+	if err != nil {
+		return err
+	}
+
+	res := LoginResponse{
+		Name:  user.Name,
+		Token: token,
+	}
+
+	return WriteJson(w, http.StatusOK, res)
 }
 
 func (s *ApiServer) handleUsers(w http.ResponseWriter, r *http.Request) error {
@@ -148,7 +180,6 @@ func (s *ApiServer) handleGetUserByID(w http.ResponseWriter, r *http.Request) er
 	if err != nil {
 		return err
 	}
-
 	return WriteJson(w, http.StatusOK, user)
 }
 
@@ -172,7 +203,6 @@ func (s *ApiServer) handleUpdateUserByID(w http.ResponseWriter, r *http.Request)
 		return err
 	}
 	return WriteJson(w, http.StatusOK, user)
-
 }
 
 func (s *ApiServer) handleDeleteUserByID(w http.ResponseWriter, r *http.Request) error {
@@ -186,7 +216,6 @@ func (s *ApiServer) handleDeleteUserByID(w http.ResponseWriter, r *http.Request)
 	}
 	deletedMsg := fmt.Sprintf("User with id: %d deleted successfully", id)
 	return WriteJson(w, http.StatusOK, deletedMsg)
-
 }
 
 func (s *ApiServer) handleGetPosts(w http.ResponseWriter, r *http.Request) error {

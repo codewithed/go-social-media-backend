@@ -27,11 +27,11 @@ func (s *ApiServer) Run() {
 	r.Use(middleware.Logger)
 	r.HandleFunc("/login", makeHttpHandlerFunc(s.handleLogin))
 	r.HandleFunc("/users", makeHttpHandlerFunc(s.handleUsers))
-	r.HandleFunc("/users/{id}", withJWTAuth(makeHttpHandlerFunc(s.handleUsersByID), s.Store))
+	r.HandleFunc("/users/{username}", withJWTAuth(makeHttpHandlerFunc(s.handleUsersByName), s.Store))
 	r.HandleFunc("/posts", makeHttpHandlerFunc(s.handlePosts))
-	r.HandleFunc("/posts/{id}", makeHttpHandlerFunc(s.handlePostsByID))
+	r.HandleFunc("/posts/{id}", withJWTAuth(makeHttpHandlerFunc(s.handlePostsByID), s.Store))
 	r.HandleFunc("/comments", makeHttpHandlerFunc(s.handleComments))
-	r.HandleFunc("/comments/{id}", makeHttpHandlerFunc(s.handleCommentsByID))
+	r.HandleFunc("/comments/{id}", withJWTAuth(makeHttpHandlerFunc(s.handleCommentsByID), s.Store))
 	http.ListenAndServe(s.ListenAddr, r)
 }
 
@@ -44,7 +44,7 @@ func (s *ApiServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	user, err := s.Store.GetUser(int(req.ID))
+	user, err := s.Store.GetUser(req.UserName)
 	if err != nil {
 		return err
 	}
@@ -59,8 +59,8 @@ func (s *ApiServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	res := LoginResponse{
-		Name:  user.Name,
-		Token: token,
+		UserName: user.UserName,
+		Token:    token,
 	}
 
 	return WriteJson(w, http.StatusOK, res)
@@ -77,24 +77,24 @@ func (s *ApiServer) handleUsers(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (s *ApiServer) handleUsersByID(w http.ResponseWriter, r *http.Request) error {
+func (s *ApiServer) handleUsersByName(w http.ResponseWriter, r *http.Request) error {
 	if r.Method == "GET" {
-		return s.handleGetUserByID(w, r)
+		return s.handleGetUser(w, r)
 	}
 
 	if r.Method == "PUT" || r.Method == "PATCH" {
-		return s.handleUpdateUserByID(w, r)
+		return s.handleUpdateUser(w, r)
 	}
 
 	if r.Method == "DELETE" {
-		return s.handleDeleteUserByID(w, r)
+		return s.handleDeleteUser(w, r)
 	}
 	return nil
 }
 
 func (s *ApiServer) handlePosts(w http.ResponseWriter, r *http.Request) error {
 	if r.Method == "GET" {
-		return s.handleGetPosts(w, r)
+		return s.handleGetAllPosts(w, r)
 	}
 
 	if r.Method == "POST" {
@@ -170,24 +170,18 @@ func (s *ApiServer) handleCreateUser(w http.ResponseWriter, r *http.Request) err
 	return WriteJson(w, http.StatusOK, user)
 }
 
-func (s *ApiServer) handleGetUserByID(w http.ResponseWriter, r *http.Request) error {
-	id, err := getID(r)
-	if err != nil {
-		return err
-	}
+func (s *ApiServer) handleGetUser(w http.ResponseWriter, r *http.Request) error {
+	username := getUserName(r)
 
-	user, err := s.Store.GetUser(id)
+	user, err := s.Store.GetUser(username)
 	if err != nil {
 		return err
 	}
 	return WriteJson(w, http.StatusOK, user)
 }
 
-func (s *ApiServer) handleUpdateUserByID(w http.ResponseWriter, r *http.Request) error {
-	id, err := getID(r)
-	if err != nil {
-		return err
-	}
+func (s *ApiServer) handleUpdateUser(w http.ResponseWriter, r *http.Request) error {
+	username := getUserName(r)
 
 	req := new(CreateUserRequest)
 	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
@@ -199,26 +193,23 @@ func (s *ApiServer) handleUpdateUserByID(w http.ResponseWriter, r *http.Request)
 		return err
 	}
 
-	if err := s.Store.UpdateUser(id, user); err != nil {
+	if err := s.Store.UpdateUser(username, user); err != nil {
 		return err
 	}
 	return WriteJson(w, http.StatusOK, user)
 }
 
-func (s *ApiServer) handleDeleteUserByID(w http.ResponseWriter, r *http.Request) error {
-	id, err := getID(r)
-	if err != nil {
-		return err
-	}
+func (s *ApiServer) handleDeleteUser(w http.ResponseWriter, r *http.Request) error {
+	username := getUserName(r)
 
-	if err := s.Store.DeleteUser(id); err != nil {
+	if err := s.Store.DeleteUser(username); err != nil {
 		return err
 	}
-	deletedMsg := fmt.Sprintf("User with id: %d deleted successfully", id)
-	return WriteJson(w, http.StatusOK, deletedMsg)
+	deletedMsg := fmt.Sprintf("User %s deleted successfully", username)
+	return WriteJson(w, http.StatusOK, &ApiError{Error: deletedMsg})
 }
 
-func (s *ApiServer) handleGetPosts(w http.ResponseWriter, r *http.Request) error {
+func (s *ApiServer) handleGetAllPosts(w http.ResponseWriter, r *http.Request) error {
 	users, err := s.Store.GetAllPosts()
 	if err != nil {
 		return err
@@ -276,8 +267,8 @@ func (s *ApiServer) handleDeletePostByID(w http.ResponseWriter, r *http.Request)
 	if err := s.Store.DeletePost(id); err != nil {
 		return err
 	}
-	deleteMsg := fmt.Sprintf("Post with id: %d deleted successfully", id)
-	return WriteJson(w, http.StatusOK, deleteMsg)
+	deletedMsg := fmt.Sprintf("Post with id: %d deleted successfully", id)
+	return WriteJson(w, http.StatusOK, &ApiError{Error: deletedMsg})
 }
 
 func (s *ApiServer) handleGetAllComments(w http.ResponseWriter, r *http.Request) error {
@@ -337,8 +328,8 @@ func (s *ApiServer) handleDeleteCommentByID(w http.ResponseWriter, r *http.Reque
 	if err := s.Store.DeleteComment(id); err != nil {
 		return err
 	}
-	deleteMsg := fmt.Sprintf("Deleted comment %v succesfully", id)
-	return WriteJson(w, http.StatusOK, deleteMsg)
+	deletedMsg := fmt.Sprintf("Deleted comment %v succesfully", id)
+	return WriteJson(w, http.StatusOK, &ApiError{Error: deletedMsg})
 }
 
 func makeHttpHandlerFunc(f apiFunc) http.HandlerFunc {
@@ -362,6 +353,11 @@ func getID(r *http.Request) (int, error) {
 		return id, fmt.Errorf("Invalid id: %v", id)
 	}
 	return id, nil
+}
+
+func getUserName(r *http.Request) string {
+	username := chi.URLParam(r, "username")
+	return username
 }
 
 type apiFunc func(http.ResponseWriter, *http.Request) error

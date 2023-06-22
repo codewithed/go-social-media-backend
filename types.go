@@ -9,6 +9,7 @@ import (
 
 type User struct {
 	ID           int64     `json:"id"`
+	UserName     string    `json:"userName"`
 	Name         string    `json:"name"`
 	Email        string    `json:"email"`
 	Bio          string    `json:"bio"`
@@ -41,6 +42,7 @@ type Follow struct {
 }
 
 type CreateUserRequest struct {
+	UserName string `json:"userName"`
 	Name     string `json:"name"`
 	Email    string `json:"email"`
 	Bio      string `json:"bio"`
@@ -65,13 +67,13 @@ type FollowRequest struct {
 }
 
 type LoginRequest struct {
-	ID       int64  `json:"id"`
+	UserName string `json:"userName"`
 	Password string `json:"password"`
 }
 
 type LoginResponse struct {
-	Name  string `json:"name"`
-	Token string `json:"token"`
+	UserName string `json:"userName"`
+	Token    string `json:"token"`
 }
 
 func NewUser(req *CreateUserRequest) (*User, error) {
@@ -82,6 +84,7 @@ func NewUser(req *CreateUserRequest) (*User, error) {
 
 	return &User{
 		ID:           int64(rand.Intn(10000)),
+		UserName:     req.UserName,
 		Name:         req.Name,
 		Email:        req.Email,
 		Bio:          req.Bio,

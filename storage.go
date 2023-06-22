@@ -8,10 +8,10 @@ import (
 
 type Storage interface {
 	GetAllUsers() ([]*User, error)
-	GetUser(id int) (*User, error)
+	GetUser(username string) (*User, error)
 	CreateUser(user *User) error
-	DeleteUser(id int) error
-	UpdateUser(id int, user *User) error
+	DeleteUser(username string) error
+	UpdateUser(username string, user *User) error
 	GetAllPosts() ([]*Post, error)
 	GetPost(id int) (*Post, error)
 	CreatePost(req *CreatePostRequest) error
@@ -49,7 +49,8 @@ func (s *PostgresStore) Init() error {
 func (s *PostgresStore) CreateTables() error {
 	query := `CREATE TABLE users (
 		id SERIAL PRIMARY KEY,
-		name VARCHAR(255) NOT NULL UNIQUE,
+		userName VARCHAR(25) NOT NULL UNIQUE,
+		name VARCHAR(225),
 		email VARCHAR(255) NOT NULL,
 		bio VARCHAR(255),
 		passwordHash VARCHAR(1000) NOT NULL,
@@ -108,8 +109,8 @@ func (s *PostgresStore) GetAllUsers() ([]*User, error) {
 	return users, nil
 }
 
-func (s *PostgresStore) GetUser(id int) (*User, error) {
-	rows, err := s.db.Query(`SELECT * FROM users WHERE id = $1`, id)
+func (s *PostgresStore) GetUser(name string) (*User, error) {
+	rows, err := s.db.Query(`SELECT * FROM users WHERE userName = $1`, name)
 	if err != nil {
 		return nil, err
 	}
@@ -122,42 +123,49 @@ func (s *PostgresStore) GetUser(id int) (*User, error) {
 }
 
 func (s *PostgresStore) CreateUser(user *User) error {
-	_, err := s.db.Exec(`INSERT INTO users (name, email, bio, passwordHash)
+	_, err := s.db.Exec(`INSERT INTO users (userName, name, email, bio, passwordHash)
 	 VALUES ($1, $2, $3, $4)`,
-		user.Name, user.Email, user.Bio, user.PasswordHash)
+		user.UserName, user.Email, user.Bio, user.PasswordHash)
 
 	return err
 }
 
-func (s *PostgresStore) DeleteUser(id int) error {
-	_, err := s.db.Exec(`DELETE FROM users WHERE id = $1`, id)
+func (s *PostgresStore) DeleteUser(username string) error {
+	_, err := s.db.Exec(`DELETE FROM users WHERE userName = $1`, username)
 	return err
 }
 
-func (s *PostgresStore) UpdateUser(id int, user *User) error {
+func (s *PostgresStore) UpdateUser(username string, user *User) error {
+	if user.UserName != "" {
+		_, err := s.db.Exec(`UPDATE users SET userName = $1 WHERE userName = $2`, user.UserName, username)
+		if err != nil {
+			return err
+		}
+	}
+
 	if user.Name != "" {
-		_, err := s.db.Exec(`UPDATE users SET name = $1 WHERE id = $2`, user.Name, id)
+		_, err := s.db.Exec(`UPDATE users SET name = $1 WHERE userName = $2`, user.Name, username)
 		if err != nil {
 			return err
 		}
 	}
 
 	if user.Email != "" {
-		_, err := s.db.Exec(`UPDATE users SET email = $1 WHERE id = $2`, user.Email, id)
+		_, err := s.db.Exec(`UPDATE users SET email = $1 WHERE id = $2`, user.Email, username)
 		if err != nil {
 			return err
 		}
 	}
 
 	if user.Bio != "" {
-		_, err := s.db.Exec(`UPDATE users SET bio = $1 WHERE id = $2`, user.Bio, id)
+		_, err := s.db.Exec(`UPDATE users SET bio = $1 WHERE id = $2`, user.Bio, username)
 		if err != nil {
 			return err
 		}
 	}
 
 	if user.PasswordHash != "" {
-		_, err := s.db.Exec(`UPDATE users SET passwordHash = $1 WHERE id = $2`, user.PasswordHash, id)
+		_, err := s.db.Exec(`UPDATE users SET passwordHash = $1 WHERE id = $2`, user.PasswordHash, username)
 		if err != nil {
 			return err
 		}
@@ -342,20 +350,7 @@ func ScanIntoUser(rows *sql.Rows) (*User, error) {
 	user := new(User)
 	err := rows.Scan(
 		&user.ID,
-		&user.Name,
-		&user.Email,
-		&user.Bio,
-		&user.PasswordHash,
-		&user.Created_at,
-	)
-
-	return user, err
-}
-
-func ScanIntoUserSafely(rows *sql.Rows) (*User, error) {
-	user := new(User)
-	err := rows.Scan(
-		&user.ID,
+		&user.UserName,
 		&user.Name,
 		&user.Email,
 		&user.Bio,

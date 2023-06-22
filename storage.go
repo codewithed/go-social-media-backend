@@ -49,7 +49,7 @@ func (s *PostgresStore) Init() error {
 func (s *PostgresStore) CreateTables() error {
 	query := `CREATE TABLE users (
 		id SERIAL PRIMARY KEY,
-		name VARCHAR(255) NOT NULL,
+		name VARCHAR(255) NOT NULL UNIQUE,
 		email VARCHAR(255) NOT NULL,
 		bio VARCHAR(255),
 		passwordHash VARCHAR(1000) NOT NULL,

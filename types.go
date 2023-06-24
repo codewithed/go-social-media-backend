@@ -17,6 +17,16 @@ type User struct {
 	Created_at   time.Time `json:"createdAt"`
 }
 
+type UserProfile struct {
+	UserID    int64  `json:"userID"`
+	UserName  string `json:"userName"`
+	Name      string `json:"name"`
+	Bio       string `json:"bio"`
+	Posts     int    `json:"posts"`
+	Followers int    `json:"followers"`
+	Following int    `json:"following"`
+}
+
 type Post struct {
 	ID         int64     `json:"id"`
 	UserID     int64     `json:"userID"`
@@ -56,9 +66,14 @@ type CreatePostRequest struct {
 }
 
 type CreateCommentRequest struct {
-	Text   string `json:"text"`
-	UserID int64  `json:"userID"`
-	PostID int64  `json:"postID"`
+	Text     string `json:"text"`
+	UserName int64  `json:"userName"`
+	PostID   int64  `json:"postID"`
+}
+
+type LikeRequest struct {
+	UserName string `json:"userName"`
+	PostID   int64  `json:"postID"`
 }
 
 type FollowRequest struct {

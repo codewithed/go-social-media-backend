@@ -2,13 +2,14 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 
 	_ "github.com/lib/pq"
 )
 
 type Storage interface {
-	GetAllUsers() ([]*User, error)
 	GetUser(username string) (*User, error)
+	GetUserProfile(username string) (*UserProfile, error)
 	CreateUser(user *User) error
 	DeleteUser(username string) error
 	UpdateUser(username string, user *User) error
@@ -17,7 +18,7 @@ type Storage interface {
 	CreatePost(req *CreatePostRequest) error
 	DeletePost(id int) error
 	UpdatePost(id int, req *CreatePostRequest) error
-	GetAllComments() ([]*Comment, error)
+	GetCommentsFromPost(postID int) ([]*Comment, error)
 	GetComment(id int) (*Comment, error)
 	CreateComment(req *CreateCommentRequest) error
 	DeleteComment(id int) error
@@ -91,23 +92,6 @@ func (s *PostgresStore) CreateTables() error {
 }
 
 // CRUD OPERATIONS FOR USERS
-func (s *PostgresStore) GetAllUsers() ([]*User, error) {
-	rows, err := s.db.Query(`SELECT * FROM users`)
-	if err != nil {
-		return nil, err
-	}
-
-	users := []*User{}
-	for rows.Next() {
-		user, err := ScanIntoUser(rows)
-		if err != nil {
-			return nil, err
-		}
-		users = append(users, user)
-	}
-
-	return users, nil
-}
 
 func (s *PostgresStore) GetUser(name string) (*User, error) {
 	rows, err := s.db.Query(`SELECT * FROM users WHERE userName = $1`, name)
@@ -120,6 +104,50 @@ func (s *PostgresStore) GetUser(name string) (*User, error) {
 	}
 
 	return nil, nil
+}
+
+func (s *PostgresStore) GetUserProfile(username string) (*UserProfile, error) {
+	tx, err := s.db.Begin()
+	if err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to begin transaction")
+	}
+
+	user_info, err := tx.Query(`SELECT userName, name, bio FROM users WHERE userName = $1`, username)
+	if err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to query user info")
+	}
+
+	profile := new(UserProfile)
+	if err := user_info.Scan(
+		&profile.UserID,
+		&profile.UserName,
+		&profile.Name,
+		&profile.Bio,
+	); err != nil {
+		return nil, fmt.Errorf("failed to scan user info")
+	}
+
+	user_stats, err := tx.Query(`SELECT
+    (SELECT COUNT(*) FROM posts WHERE user_id = $1) AS post_count,
+    (SELECT COUNT(*) FROM followers WHERE user_id = $1) AS follower_count,
+    (SELECT COUNT(*) FROM followers WHERE follower_id = $1) AS following_count;`, profile.UserID)
+	if err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to query user stats")
+	}
+
+	if err := user_stats.Scan(
+		&profile.Posts,
+		&profile.Followers,
+		&profile.Following,
+	); err != nil {
+		return nil, fmt.Errorf("failed to scan user stats")
+	}
+
+	tx.Commit()
+	return profile, nil
 }
 
 func (s *PostgresStore) CreateUser(user *User) error {
@@ -240,8 +268,8 @@ func (s *PostgresStore) UpdatePost(id int, req *CreatePostRequest) error {
 }
 
 // CRUD OPERATIONS FOR COMMENTS
-func (s *PostgresStore) GetAllComments() ([]*Comment, error) {
-	rows, err := s.db.Query(`SELECT * FROM comments`)
+func (s *PostgresStore) GetCommentsFromPost(postID int) ([]*Comment, error) {
+	rows, err := s.db.Query(`SELECT * FROM comments WHERE postID = $1`, postID)
 	if err != nil {
 		return nil, err
 	}
@@ -275,7 +303,7 @@ func (s *PostgresStore) CreateComment(req *CreateCommentRequest) error {
 	_, err := s.db.Exec(`INSERT INTO comments (text, userID, postID) 
 	VALUES ($1, $2, $3)`,
 		req.Text,
-		req.UserID,
+		req.UserName,
 		req.PostID)
 
 	return err

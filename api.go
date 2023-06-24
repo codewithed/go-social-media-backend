@@ -25,19 +25,28 @@ func NewApiServer(addr string, store Storage) (*ApiServer, error) {
 func (s *ApiServer) Run() {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
+	r.HandleFunc("/signup", makeHttpHandlerFunc(s.handleSignUp))
 	r.HandleFunc("/login", makeHttpHandlerFunc(s.handleLogin))
-	r.HandleFunc("/users", makeHttpHandlerFunc(s.handleUsers))
-	r.HandleFunc("/users/{username}", withJWTAuth(makeHttpHandlerFunc(s.handleUsersByName), s.Store))
-	r.HandleFunc("/posts", makeHttpHandlerFunc(s.handlePosts))
-	r.HandleFunc("/posts/{id}", withJWTAuth(makeHttpHandlerFunc(s.handlePostsByID), s.Store))
-	r.HandleFunc("/comments", makeHttpHandlerFunc(s.handleComments))
-	r.HandleFunc("/comments/{id}", withJWTAuth(makeHttpHandlerFunc(s.handleCommentsByID), s.Store))
+	r.HandleFunc("/{username}", makeHttpHandlerFunc(s.handleGetUserProfile))
+	r.HandleFunc("/{username}/followers", makeHttpHandlerFunc(s.handleGetFollowers))
+	r.HandleFunc("/{username}/following", makeHttpHandlerFunc(s.handleGetFollowing))
+	r.HandleFunc("/{username}/follow", makeHttpHandlerFunc(s.handleFollow))
+	r.HandleFunc("/posts/{id}", makeHttpHandlerFunc(s.handlePostsByID))
+	r.HandleFunc("/posts/{id}/likes", makeHttpHandlerFunc(s.handlePostsByID))
+	r.HandleFunc("/posts/{id}/comments", makeHttpHandlerFunc(s.handleComments))
 	http.ListenAndServe(s.ListenAddr, r)
+}
+
+func (s *ApiServer) handleSignUp(w http.ResponseWriter, r *http.Request) error {
+	if r.Method != "POST" {
+		return WriteJson(w, http.StatusBadRequest, &ApiError{Error: "Unexpected method"})
+	}
+	return s.handleCreateUser(w, r)
 }
 
 func (s *ApiServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 	if r.Method != "POST" {
-		return WriteJson(w, http.StatusBadGateway, &ApiError{Error: "Invalid method"})
+		return WriteJson(w, http.StatusBadRequest, &ApiError{Error: "Unexpected method"})
 	}
 	req := new(LoginRequest)
 	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
@@ -66,20 +75,9 @@ func (s *ApiServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 	return WriteJson(w, http.StatusOK, res)
 }
 
-func (s *ApiServer) handleUsers(w http.ResponseWriter, r *http.Request) error {
-	if r.Method == "GET" {
-		return s.handleGetUsers(w, r)
-	}
-
-	if r.Method == "POST" {
-		return s.handleCreateUser(w, r)
-	}
-	return nil
-}
-
 func (s *ApiServer) handleUsersByName(w http.ResponseWriter, r *http.Request) error {
 	if r.Method == "GET" {
-		return s.handleGetUser(w, r)
+		return s.handleGetUserProfile(w, r)
 	}
 
 	if r.Method == "PUT" || r.Method == "PATCH" {
@@ -170,10 +168,10 @@ func (s *ApiServer) handleCreateUser(w http.ResponseWriter, r *http.Request) err
 	return WriteJson(w, http.StatusOK, user)
 }
 
-func (s *ApiServer) handleGetUser(w http.ResponseWriter, r *http.Request) error {
+func (s *ApiServer) handleGetUserProfile(w http.ResponseWriter, r *http.Request) error {
 	username := getUserName(r)
 
-	user, err := s.Store.GetUser(username)
+	user, err := s.Store.GetUserProfile(username)
 	if err != nil {
 		return err
 	}

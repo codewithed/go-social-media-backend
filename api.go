@@ -33,7 +33,7 @@ func (s *ApiServer) Run() {
 	r.HandleFunc("/{username}/follow", makeHttpHandlerFunc(s.handleFollow))
 	r.HandleFunc("/posts/{id}", makeHttpHandlerFunc(s.handlePostsByID))
 	r.HandleFunc("/posts/{id}/likes", makeHttpHandlerFunc(s.handlePostsByID))
-	r.HandleFunc("/posts/{id}/comments", makeHttpHandlerFunc(s.handleComments))
+	r.HandleFunc("/posts/{id}/comments", makeHttpHandlerFunc(s.handleGetCommentsFromPost))
 	http.ListenAndServe(s.ListenAddr, r)
 }
 
@@ -140,15 +140,6 @@ func (s *ApiServer) handleCommentsByID(w http.ResponseWriter, r *http.Request) e
 		return s.handleDeleteCommentByID(w, r)
 	}
 	return nil
-}
-
-func (s *ApiServer) handleGetUsers(w http.ResponseWriter, r *http.Request) error {
-	users, err := s.Store.GetAllUsers()
-	if err != nil {
-		return err
-	}
-
-	return WriteJson(w, http.StatusOK, users)
 }
 
 func (s *ApiServer) handleCreateUser(w http.ResponseWriter, r *http.Request) error {
@@ -269,8 +260,13 @@ func (s *ApiServer) handleDeletePostByID(w http.ResponseWriter, r *http.Request)
 	return WriteJson(w, http.StatusOK, &ApiError{Error: deletedMsg})
 }
 
-func (s *ApiServer) handleGetAllComments(w http.ResponseWriter, r *http.Request) error {
-	comments, err := s.Store.GetAllComments()
+func (s *ApiServer) handleGetCommentsFromPost(w http.ResponseWriter, r *http.Request) error {
+	id, err := getID(r)
+	if err != nil {
+		return fmt.Errorf("Invalid id")
+	}
+
+	comments, err := s.Store.GetCommentsFromPost(id)
 	if err != nil {
 		return err
 	}

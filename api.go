@@ -27,12 +27,13 @@ func (s *ApiServer) Run() {
 	r.Use(middleware.Logger)
 	r.HandleFunc("/signup", makeHttpHandlerFunc(s.handleSignUp))
 	r.HandleFunc("/login", makeHttpHandlerFunc(s.handleLogin))
-	r.HandleFunc("/{username}", makeHttpHandlerFunc(s.handleGetUserProfile))
+	r.HandleFunc("/{username}", makeHttpHandlerFunc(s.handleUsersByName))
 	r.HandleFunc("/{username}/followers", makeHttpHandlerFunc(s.handleGetFollowers))
 	r.HandleFunc("/{username}/following", makeHttpHandlerFunc(s.handleGetFollowing))
 	r.HandleFunc("/{username}/follow", makeHttpHandlerFunc(s.handleFollow))
+	r.HandleFunc("/posts", makeHttpHandlerFunc(s.handlePosts))
 	r.HandleFunc("/posts/{id}", makeHttpHandlerFunc(s.handlePostsByID))
-	r.HandleFunc("/posts/{id}/likes", makeHttpHandlerFunc(s.handlePostsByID))
+	r.HandleFunc("/posts/{id}/likes", makeHttpHandlerFunc(s.handlePostlikes))
 	r.HandleFunc("/posts/{id}/comments", makeHttpHandlerFunc(s.handleGetCommentsFromPost))
 	http.ListenAndServe(s.ListenAddr, r)
 }
@@ -90,15 +91,25 @@ func (s *ApiServer) handleUsersByName(w http.ResponseWriter, r *http.Request) er
 	return nil
 }
 
-func (s *ApiServer) handlePosts(w http.ResponseWriter, r *http.Request) error {
-	if r.Method == "GET" {
-		return s.handleGetAllPosts(w, r)
+func (s *ApiServer) handleGetFollowers(w http.ResponseWriter, r *http.Request) error {
+	if r.Method != "GET" {
+		return fmt.Errorf("Unexpected method: %v", r.Method)
 	}
 
-	if r.Method == "POST" {
-		return s.handleCreatePost(w, r)
+	username := getUserName(r)
+	followers, err := s.Store.GetFollowers(username)
+	if err != nil {
+		return fmt.Errorf("Couldn't get followers")
 	}
-	return nil
+
+	return WriteJson(w, http.StatusOK, followers)
+}
+
+func (s *ApiServer) handlePosts(w http.ResponseWriter, r *http.Request) error {
+	if r.Method != "POST" {
+		return fmt.Errorf("Unexpected method")
+	}
+	return s.handleCreatePost(w, r)
 }
 
 func (s *ApiServer) handlePostsByID(w http.ResponseWriter, r *http.Request) error {
@@ -112,17 +123,6 @@ func (s *ApiServer) handlePostsByID(w http.ResponseWriter, r *http.Request) erro
 
 	if r.Method == "DELETE" {
 		return s.handleDeletePostByID(w, r)
-	}
-	return nil
-}
-
-func (s *ApiServer) handleComments(w http.ResponseWriter, r *http.Request) error {
-	if r.Method == "GET" {
-		return s.handleGetAllComments(w, r)
-	}
-
-	if r.Method == "POST" {
-		return s.handleCreateComment(w, r)
 	}
 	return nil
 }
@@ -196,15 +196,6 @@ func (s *ApiServer) handleDeleteUser(w http.ResponseWriter, r *http.Request) err
 	}
 	deletedMsg := fmt.Sprintf("User %s deleted successfully", username)
 	return WriteJson(w, http.StatusOK, &ApiError{Error: deletedMsg})
-}
-
-func (s *ApiServer) handleGetAllPosts(w http.ResponseWriter, r *http.Request) error {
-	users, err := s.Store.GetAllPosts()
-	if err != nil {
-		return err
-	}
-
-	return WriteJson(w, http.StatusOK, users)
 }
 
 func (s *ApiServer) handleCreatePost(w http.ResponseWriter, r *http.Request) error {

@@ -13,7 +13,7 @@ type Storage interface {
 	CreateUser(user *User) error
 	DeleteUser(username string) error
 	UpdateUser(username string, user *User) error
-	GetAllPosts() ([]*Post, error)
+	GetUserPosts(id int) ([]*Post, error)
 	GetPost(id int) (*Post, error)
 	CreatePost(req *CreatePostRequest) error
 	DeletePost(id int) error
@@ -23,6 +23,7 @@ type Storage interface {
 	CreateComment(req *CreateCommentRequest) error
 	DeleteComment(id int) error
 	UpdateComment(id int, req *CreateCommentRequest) error
+	GetFollowers(username string) ([]string, error)
 }
 
 type PostgresStore struct {
@@ -203,8 +204,8 @@ func (s *PostgresStore) UpdateUser(username string, user *User) error {
 }
 
 // CRUD OPERATIONS FOR POSTS
-func (s *PostgresStore) GetAllPosts() ([]*Post, error) {
-	rows, err := s.db.Query(`SELECT * FROM posts`)
+func (s *PostgresStore) GetUserPosts(user_id int) ([]*Post, error) {
+	rows, err := s.db.Query(`SELECT * FROM posts WHERE user_id = $1`, user_id)
 	if err != nil {
 		return nil, err
 	}
@@ -328,6 +329,32 @@ func (s *PostgresStore) UpdateComment(id int, req *CreateCommentRequest) error {
 }
 
 // CRUD OPERATIONS FOR FOLLOWS
+func (s *PostgresStore) GetFollowers(username string) ([]string, error) {
+	id, err := s.getUserIDFromUserName(username)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user_id from username: %v", err)
+	}
+
+	// use the user_id to get the followers
+	rows, err := s.db.Query(`SELECT userName FROM follows WHERE userID = $1`, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get followers row")
+	}
+
+	followers := []string{}
+	for rows.Next() {
+		follower := ""
+		err := rows.Scan(&follower)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan user")
+		}
+
+		followers = append(followers, follower)
+	}
+
+	return followers, nil
+}
+
 func (s *PostgresStore) CreateFollow(req *FollowRequest) error {
 	_, err := s.db.Exec(`INSERT INTO follows (userID, followerID) 
 	VALUES ($1, $2)`,
@@ -337,39 +364,8 @@ func (s *PostgresStore) CreateFollow(req *FollowRequest) error {
 	return err
 }
 
-func (s *PostgresStore) GetFollow(id int) (*Follow, error) {
-	rows, err := s.db.Query(`SELECT * FROM follows WHERE id = $1`, id)
-	if err != nil {
-		return nil, err
-	}
-
-	for rows.Next() {
-		return ScanIntoFollow(rows)
-	}
-
-	return nil, nil
-}
-
-func (s *PostgresStore) GetAllFollows() ([]*Follow, error) {
-	rows, err := s.db.Query(`SELECT * FROM follows`)
-	if err != nil {
-		return nil, err
-	}
-
-	follows := []*Follow{}
-	for rows.Next() {
-		follow, err := ScanIntoFollow(rows)
-		if err != nil {
-			return nil, err
-		}
-		follows = append(follows, follow)
-	}
-
-	return follows, nil
-}
-
 func (s *PostgresStore) DeleteFollow(id int) error {
-	_, err := s.db.Exec(`DELETE FROM comments WHERE id = $1`, id)
+	_, err := s.db.Exec(`DELETE FROM follows WHERE id = $1`, id)
 	return err
 }
 
@@ -425,4 +421,21 @@ func ScanIntoFollow(rows *sql.Rows) (*Follow, error) {
 	)
 
 	return follow, err
+}
+
+// HELPER FUNCTIONS
+
+func (s *PostgresStore) getUserIDFromUserName(username string) (int, error) {
+	var id int
+	idrow, err := s.db.Query(`SELECT id FROM users WHERE username = $1`, username)
+	if err != nil {
+		return id, fmt.Errorf("failed to get userID from username: %v", err)
+	}
+
+	err = idrow.Scan(&id)
+	if err != nil {
+		return id, fmt.Errorf("failed to get scan userID from row")
+	}
+
+	return id, nil
 }

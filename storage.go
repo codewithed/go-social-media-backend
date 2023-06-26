@@ -13,7 +13,7 @@ type Storage interface {
 	CreateUser(user *User) error
 	DeleteUser(username string) error
 	UpdateUser(username string, user *User) error
-	GetUserPosts(id int) ([]*Post, error)
+	GetUserPosts(username string) ([]*Post, error)
 	GetPost(id int) (*Post, error)
 	CreatePost(req *CreatePostRequest) error
 	DeletePost(id int) error
@@ -24,6 +24,9 @@ type Storage interface {
 	DeleteComment(id int) error
 	UpdateComment(id int, req *CreateCommentRequest) error
 	GetFollowers(username string) ([]string, error)
+	GetFollowing(username string) ([]string, error)
+	CreateFollow(req *FollowRequest) error
+	DeleteFollow(req *FollowRequest) error
 }
 
 type PostgresStore struct {
@@ -81,12 +84,20 @@ func (s *PostgresStore) CreateTables() error {
 	CREATE TABLE follows (
 		id SERIAL PRIMARY KEY,
 		userID BIGINT NOT NULL,
-		followed_by_ID BIGINT NOT NULL,
+		followerID BIGINT NOT NULL,
 		created_at timestamptz NOT NULL,
 		CONSTRAINT fk_userID FOREIGN KEY (userID) REFERENCES users (id) ON DELETE CASCADE,
-		CONSTRAINT fk_followed_by_ID FOREIGN KEY (followed_by_ID) REFERENCES users (id) ON DELETE CASCADE
+		CONSTRAINT fk_followerID FOREIGN KEY (followerID) REFERENCES users (id) ON DELETE CASCADE
 	);
-	`
+	
+	CREATE TABLE likes (
+		id SERIAL PRIMARY KEY,
+		userID BIGINT NOT NULL,
+		postID BIGINT NOT NULL,
+		created_at timestamptz NOT NULL,
+		CONSTRAINT fk_userID FOREIGN KEY (userID) REFERENCES users (id) ON DELETE CASCADE,
+		CONSTRAINT fk_postID FOREIGN KEY (postID) REFERENCES posts (id) ON DELETE CASCADE
+	);`
 
 	_, err := s.db.Exec(query)
 	return err
@@ -131,9 +142,9 @@ func (s *PostgresStore) GetUserProfile(username string) (*UserProfile, error) {
 	}
 
 	user_stats, err := tx.Query(`SELECT
-    (SELECT COUNT(*) FROM posts WHERE user_id = $1) AS post_count,
-    (SELECT COUNT(*) FROM followers WHERE user_id = $1) AS follower_count,
-    (SELECT COUNT(*) FROM followers WHERE follower_id = $1) AS following_count;`, profile.UserID)
+    (SELECT COUNT(*) FROM posts WHERE userID = $1) AS post_count,
+    (SELECT COUNT(*) FROM follows WHERE userID = $1) AS follower_count,
+    (SELECT COUNT(*) FROM follows WHERE followerID = $1) AS following_count;`, profile.UserID)
 	if err != nil {
 		tx.Rollback()
 		return nil, fmt.Errorf("failed to query user stats")
@@ -204,8 +215,13 @@ func (s *PostgresStore) UpdateUser(username string, user *User) error {
 }
 
 // CRUD OPERATIONS FOR POSTS
-func (s *PostgresStore) GetUserPosts(user_id int) ([]*Post, error) {
-	rows, err := s.db.Query(`SELECT * FROM posts WHERE user_id = $1`, user_id)
+func (s *PostgresStore) GetUserPosts(username string) ([]*Post, error) {
+	user_id, err := s.getUserIDFromUserName(username)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user ID from username")
+	}
+
+	rows, err := s.db.Query(`SELECT * FROM posts WHERE userID = $1`, user_id)
 	if err != nil {
 		return nil, err
 	}
@@ -335,7 +351,6 @@ func (s *PostgresStore) GetFollowers(username string) ([]string, error) {
 		return nil, fmt.Errorf("failed to get user_id from username: %v", err)
 	}
 
-	// use the user_id to get the followers
 	rows, err := s.db.Query(`SELECT userName FROM follows WHERE userID = $1`, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get followers row")
@@ -355,17 +370,44 @@ func (s *PostgresStore) GetFollowers(username string) ([]string, error) {
 	return followers, nil
 }
 
+func (s *PostgresStore) GetFollowing(username string) ([]string, error) {
+	id, err := s.getUserIDFromUserName(username)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user_id from username: %v", err)
+	}
+
+	rows, err := s.db.Query(`SELECT userName FROM follows WHERE followerID = $1`, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get following row")
+	}
+
+	following := []string{}
+	for rows.Next() {
+		follow := ""
+		err := rows.Scan(&follow)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan user")
+		}
+
+		following = append(following, follow)
+	}
+
+	return following, nil
+}
+
 func (s *PostgresStore) CreateFollow(req *FollowRequest) error {
 	_, err := s.db.Exec(`INSERT INTO follows (userID, followerID) 
 	VALUES ($1, $2)`,
 		req.UserID,
-		req.FollowerID)
+		req.FollowingID)
 
 	return err
 }
 
-func (s *PostgresStore) DeleteFollow(id int) error {
-	_, err := s.db.Exec(`DELETE FROM follows WHERE id = $1`, id)
+func (s *PostgresStore) DeleteFollow(req *FollowRequest) error {
+	_, err := s.db.Exec(`DELETE FROM follows WHERE userID = $1 AND followerID = $2`,
+		req.UserID,
+		req.FollowingID)
 	return err
 }
 
@@ -424,7 +466,6 @@ func ScanIntoFollow(rows *sql.Rows) (*Follow, error) {
 }
 
 // HELPER FUNCTIONS
-
 func (s *PostgresStore) getUserIDFromUserName(username string) (int, error) {
 	var id int
 	idrow, err := s.db.Query(`SELECT id FROM users WHERE username = $1`, username)

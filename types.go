@@ -28,12 +28,12 @@ type UserProfile struct {
 }
 
 type Post struct {
-	ID         int64     `json:"id"`
-	UserID     int64     `json:"userID"`
-	MediaUrl   string    `json:"mediaUrl"`
-	Content    string    `json:"content"`
-	Created_at time.Time `json:"createdAt"`
-	Edited_at  time.Time `json:"editedAt"`
+	ID          int64     `json:"id"`
+	UserID      int64     `json:"userID"`
+	MediaUrl    string    `json:"mediaUrl"`
+	Content     string    `json:"content"`
+	Created_at  time.Time `json:"createdAt"`
+	Last_edited time.Time `json:"editedAt"`
 }
 
 type Comment struct {
@@ -72,13 +72,13 @@ type CreateCommentRequest struct {
 }
 
 type LikeRequest struct {
-	UserName string `json:"userName"`
-	PostID   int64  `json:"postID"`
+	UserName   string `json:"userName"`
+	ResourceID int64  `json:"resourceID"`
 }
 
 type FollowRequest struct {
-	UserID     int64 `json:"userID"`
-	FollowerID int64 `json:"followerID"`
+	UserID      int64 `json:"userID"`
+	FollowingID int64 `json:"followingID"`
 }
 
 type LoginRequest struct {

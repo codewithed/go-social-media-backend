@@ -384,11 +384,11 @@ func (s *ApiServer) handleLikePost(w http.ResponseWriter, r *http.Request) error
 		return fmt.Errorf("Error decoding like request")
 	}
 
-	err := s.Store.LikePost(LikeRequest)
+	err := s.Store.LikePost(req)
 	if err != nil {
 		return fmt.Errorf("Failed to like post")
 	}
-	return WriteJson(w, http.StatusOK, fmt.Sprintf("Liked post:%s  successfully", req.ResourceID))
+	return WriteJson(w, http.StatusOK, fmt.Sprintf("Liked post:%v  successfully", req.ResourceID))
 }
 
 func (s *ApiServer) handleUnlikePost(w http.ResponseWriter, r *http.Request) error {
@@ -397,11 +397,11 @@ func (s *ApiServer) handleUnlikePost(w http.ResponseWriter, r *http.Request) err
 		return fmt.Errorf("Error decoding like request")
 	}
 
-	err := s.Store.UnlikePost(LikeRequest)
+	err := s.Store.UnlikePost(req)
 	if err != nil {
 		return fmt.Errorf("Failed to like post")
 	}
-	return WriteJson(w, http.StatusOK, fmt.Sprintf("Unliked post:%s successfully", req.ResourceID))
+	return WriteJson(w, http.StatusOK, fmt.Sprintf("Unliked post:%v successfully", req.ResourceID))
 }
 
 func makeHttpHandlerFunc(f apiFunc) http.HandlerFunc {

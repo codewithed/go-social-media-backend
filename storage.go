@@ -27,6 +27,10 @@ type Storage interface {
 	GetFollowing(username string) ([]string, error)
 	CreateFollow(req *FollowRequest) error
 	DeleteFollow(req *FollowRequest) error
+	LikePost(req *LikeRequest) error
+	UnlikePost(req *LikeRequest) error
+	LikeComment(req *LikeRequest) error
+	UnlikeComment(req *LikeRequest) error
 }
 
 type PostgresStore struct {
@@ -90,13 +94,22 @@ func (s *PostgresStore) CreateTables() error {
 		CONSTRAINT fk_followerID FOREIGN KEY (followerID) REFERENCES users (id) ON DELETE CASCADE
 	);
 	
-	CREATE TABLE likes (
+	CREATE TABLE post_likes (
 		id SERIAL PRIMARY KEY,
 		userID BIGINT NOT NULL,
 		postID BIGINT NOT NULL,
 		created_at timestamptz NOT NULL,
 		CONSTRAINT fk_userID FOREIGN KEY (userID) REFERENCES users (id) ON DELETE CASCADE,
 		CONSTRAINT fk_postID FOREIGN KEY (postID) REFERENCES posts (id) ON DELETE CASCADE
+	)
+	
+	CREATE TABLE comment_likes (
+		id SERIAL PRIMARY KEY,
+		userID BIGINT NOT NULL,
+		postID BIGINT NOT NULL,
+		created_at timestamptz NOT NULL,
+		CONSTRAINT fk_userID FOREIGN KEY (userID) REFERENCES users (id) ON DELETE CASCADE,
+		CONSTRAINT fk_postID FOREIGN KEY (commentID) REFERENCES comments (id) ON DELETE CASCADE
 	);`
 
 	_, err := s.db.Exec(query)
@@ -408,6 +421,26 @@ func (s *PostgresStore) DeleteFollow(req *FollowRequest) error {
 	_, err := s.db.Exec(`DELETE FROM follows WHERE userID = $1 AND followerID = $2`,
 		req.UserID,
 		req.FollowingID)
+	return err
+}
+
+func (s *PostgresStore) LikePost(req *LikeRequest) error {
+	_, err := s.db.Exec(`INSERT INTO post_likes (userID, postID) VALUES($1, $2)`, req.UserID, req.ResourceID)
+	return err
+}
+
+func (s *PostgresStore) UnlikePost(req *LikeRequest) error {
+	_, err := s.db.Exec(`DELETE FROM post_likes WHERE userID = $1 AND postID = $2`, req.UserID, req.ResourceID)
+	return err
+}
+
+func (s *PostgresStore) LikeComment(req *LikeRequest) error {
+	_, err := s.db.Exec(`INSERT INTO comment_likes (userID, commentID) VALUES($1, $2)`, req.UserID, req.ResourceID)
+	return err
+}
+
+func (s *PostgresStore) UnlikeComment(req *LikeRequest) error {
+	_, err := s.db.Exec(`DELETE FROM comment_likes WHERE userID = $1 AND commentID = $2`, req.UserID, req.ResourceID)
 	return err
 }
 

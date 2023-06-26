@@ -72,8 +72,9 @@ type CreateCommentRequest struct {
 }
 
 type LikeRequest struct {
-	UserName   string `json:"userName"`
-	ResourceID int64  `json:"resourceID"`
+	UserID       string `json:"userID"`
+	ResourceType string `json:"resourceType"`
+	ResourceID   int64  `json:"resourceID"`
 }
 
 type FollowRequest struct {

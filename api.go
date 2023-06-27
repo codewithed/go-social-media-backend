@@ -32,11 +32,16 @@ func (s *ApiServer) Run() {
 	r.HandleFunc("/{username}/followers", makeHttpHandlerFunc(s.handleGetFollowers))
 	r.HandleFunc("/{username}/following", makeHttpHandlerFunc(s.handleGetFollowing))
 	r.HandleFunc("/{username}/follow", makeHttpHandlerFunc(s.handleFollow))
+	r.HandleFunc("/{username}/unfollow", makeHttpHandlerFunc(s.handleUnfollow))
 	r.HandleFunc("/posts", makeHttpHandlerFunc(s.handleCreatePost))
 	r.HandleFunc("/posts/{id}", makeHttpHandlerFunc(s.handlePostsByID))
+	r.HandleFunc("/posts/{id}/like", makeHttpHandlerFunc(s.handleLikePost))
+	r.HandleFunc("/posts/{id}/unlike", makeHttpHandlerFunc(s.handleUnlikePost))
 	r.HandleFunc("/posts/{id}/likes", makeHttpHandlerFunc(s.handlePostlikes))
-	r.HandleFunc("/posts/{id}/comments", makeHttpHandlerFunc(s.handleGetCommentsFromPost))
-	r.HandleFunc("/posts/{postID}/comments/{commentID}", makeHttpHandlerFunc(s.handleGetCommentsFromPost))
+	r.HandleFunc("/posts/{id}/comments", makeHttpHandlerFunc(s.handlePostComments))
+	r.HandleFunc("comments/{id}", makeHttpHandlerFunc(s.handleCommentsByID))
+	r.HandleFunc("comments/{id}/like", makeHttpHandlerFunc(s.handleLikeComment))
+	r.HandleFunc("comments/{id}/unlike", makeHttpHandlerFunc(s.handleUnlikeComment))
 	http.ListenAndServe(s.ListenAddr, r)
 }
 
@@ -115,31 +120,37 @@ func (s *ApiServer) handleGetFollowing(w http.ResponseWriter, r *http.Request) e
 }
 
 func (s *ApiServer) handleFollow(w http.ResponseWriter, r *http.Request) error {
-
+	if r.Method != "POST" {
+		return fmt.Errorf("Unexpected method: %s", r.Method)
+	}
 	req := new(FollowRequest)
 	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
 		return err
 	}
 
-	if r.Method == "POST" {
-		err := s.Store.CreateFollow(req)
-		if err != nil {
-			return fmt.Errorf("Failed to follow user with id: %v", req.FollowingID)
-		}
-
-		return WriteJson(w, http.StatusOK, fmt.Sprintf("Followed user with id: %v", req.FollowingID))
+	err := s.Store.CreateFollow(req)
+	if err != nil {
+		return fmt.Errorf("Failed to follow user with id: %v", req.FollowingID)
 	}
 
-	if r.Method == "DELETE" {
-		err := s.Store.DeleteFollow(req)
-		if err != nil {
-			return fmt.Errorf("Failed to unfollow user with id: %v", req.FollowingID)
-		}
+	return WriteJson(w, http.StatusOK, fmt.Sprintf("Followed user with id: %v", req.FollowingID))
+}
 
-		return WriteJson(w, http.StatusOK, fmt.Sprintf("Unfollowed user with id: %v", req.FollowingID))
+func (s *ApiServer) handleUnfollow(w http.ResponseWriter, r *http.Request) error {
+	if r.Method != "DELETE" {
+		return fmt.Errorf("Unexpected method: %s", r.Method)
+	}
+	req := new(FollowRequest)
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		return err
 	}
 
-	return nil
+	err := s.Store.DeleteFollow(req)
+	if err != nil {
+		return fmt.Errorf("Failed to unfollow user with id: %v", req.FollowingID)
+	}
+
+	return WriteJson(w, http.StatusOK, fmt.Sprintf("Unfollowed user with id: %v", req.FollowingID))
 }
 
 func (s *ApiServer) handleGetUserPosts(w http.ResponseWriter, r *http.Request) error {
@@ -404,6 +415,52 @@ func (s *ApiServer) handleUnlikePost(w http.ResponseWriter, r *http.Request) err
 	return WriteJson(w, http.StatusOK, fmt.Sprintf("Unliked post:%v successfully", req.ResourceID))
 }
 
+func (s *ApiServer) handlePostComments(w http.ResponseWriter, r *http.Request) error {
+	if r.Method == "GET" {
+		return s.handleGetCommentsFromPost(w, r)
+	}
+
+	if r.Method == "POST" {
+		return s.handleCreateComment(w, r)
+	}
+
+	return nil
+}
+
+func (s *ApiServer) handleLikeComment(w http.ResponseWriter, r *http.Request) error {
+	if r.Method != "POST" {
+		return fmt.Errorf("Unexpected method %s", r.Method)
+	}
+
+	req := new(LikeRequest)
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		return fmt.Errorf("Error decoding request")
+	}
+
+	err := s.Store.LikeComment(req)
+	if err != nil {
+		return fmt.Errorf("Failed to store like comment: %v", req.ResourceID)
+	}
+	return WriteJson(w, http.StatusOK, fmt.Sprintf("Liked post: %v successfuly", req.ResourceID))
+}
+
+func (s *ApiServer) handleUnlikeComment(w http.ResponseWriter, r *http.Request) error {
+	if r.Method != "DELETE" {
+		return fmt.Errorf("Unexpected method %s", r.Method)
+	}
+
+	req := new(LikeRequest)
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		return fmt.Errorf("Error decoding request")
+	}
+
+	err := s.Store.LikeComment(req)
+	if err != nil {
+		return fmt.Errorf("Failed to store like comment: %v", req.ResourceID)
+	}
+	return WriteJson(w, http.StatusOK, fmt.Sprintf("Unliked post: %v successfuly", req.ResourceID))
+}
+
 func makeHttpHandlerFunc(f apiFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := f(w, r); err != nil {
@@ -412,6 +469,7 @@ func makeHttpHandlerFunc(f apiFunc) http.HandlerFunc {
 	}
 }
 
+// HELPER FUNCTIONS
 func WriteJson(w http.ResponseWriter, status int, v any) error {
 	w.WriteHeader(status)
 	w.Header().Add("Content-Type", "application/json")

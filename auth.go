@@ -10,8 +10,8 @@ import (
 
 func CreateJWT(user *User) (string, error) {
 	claims := &jwt.MapClaims{
-		"expiresAt": 15000,
 		"userID":    user.ID,
+		"expiresAt": 15000,
 	}
 
 	secret := os.Getenv("JWT_SECRET")
@@ -36,7 +36,10 @@ func withJWTAuth(handlerFunc http.HandlerFunc, s Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("calling JWT auth middleware")
 
+		// get token string
 		tokenString := r.Header.Get("x-jwt-token")
+
+		// get the token and validate it
 		token, err := ValidateJWT(tokenString)
 		if err != nil {
 			permissionDenied(w)
@@ -47,6 +50,7 @@ func withJWTAuth(handlerFunc http.HandlerFunc, s Storage) http.HandlerFunc {
 			return
 		}
 
+		// get user from database
 		username := getUserName(r)
 		user, err := s.GetUser(username)
 		if err != nil {
@@ -54,13 +58,9 @@ func withJWTAuth(handlerFunc http.HandlerFunc, s Storage) http.HandlerFunc {
 			return
 		}
 
+		// compare userID with that in the jwt token
 		claims := token.Claims.(jwt.MapClaims)
 		if user.ID != int64(claims["id"].(int)) {
-			permissionDenied(w)
-			return
-		}
-
-		if err != nil {
 			permissionDenied(w)
 			return
 		}

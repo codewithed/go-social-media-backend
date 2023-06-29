@@ -28,20 +28,19 @@ func (s *ApiServer) Run() {
 	r.HandleFunc("/signup", makeHttpHandlerFunc(s.handleSignUp))
 	r.HandleFunc("/login", makeHttpHandlerFunc(s.handleLogin))
 	r.HandleFunc("/{username}", makeHttpHandlerFunc(s.handleUsersByName))
-	r.HandleFunc("/{username}/posts", makeHttpHandlerFunc(s.handleGetUserPosts))
+	r.HandleFunc("/{username}/posts", withJWTAuth(makeHttpHandlerFunc(s.handleUserPosts), s.Store))
 	r.HandleFunc("/{username}/followers", makeHttpHandlerFunc(s.handleGetFollowers))
 	r.HandleFunc("/{username}/following", makeHttpHandlerFunc(s.handleGetFollowing))
-	r.HandleFunc("/{username}/follow", makeHttpHandlerFunc(s.handleFollow))
-	r.HandleFunc("/{username}/unfollow", makeHttpHandlerFunc(s.handleUnfollow))
-	r.HandleFunc("/posts", makeHttpHandlerFunc(s.handleCreatePost))
-	r.HandleFunc("/posts/{id}", makeHttpHandlerFunc(s.handlePostsByID))
-	r.HandleFunc("/posts/{id}/like", makeHttpHandlerFunc(s.handleLikePost))
-	r.HandleFunc("/posts/{id}/unlike", makeHttpHandlerFunc(s.handleUnlikePost))
-	r.HandleFunc("/posts/{id}/likes", makeHttpHandlerFunc(s.handlePostlikes))
-	r.HandleFunc("/posts/{id}/comments", makeHttpHandlerFunc(s.handlePostComments))
-	r.HandleFunc("comments/{id}", makeHttpHandlerFunc(s.handleCommentsByID))
-	r.HandleFunc("comments/{id}/like", makeHttpHandlerFunc(s.handleLikeComment))
-	r.HandleFunc("comments/{id}/unlike", makeHttpHandlerFunc(s.handleUnlikeComment))
+	r.HandleFunc("/{username}/follow", withJWTAuth(makeHttpHandlerFunc(s.handleFollow), s.Store))
+	r.HandleFunc("/{username}/unfollow", withJWTAuth(makeHttpHandlerFunc(s.handleUnfollow), s.Store))
+	r.HandleFunc("/posts/{id}", withJWTAuth(makeHttpHandlerFunc(s.handlePostsByID), s.Store))
+	r.HandleFunc("/posts/{id}/like", withJWTAuth(makeHttpHandlerFunc(s.handleLikePost), s.Store))
+	r.HandleFunc("/posts/{id}/unlike", withJWTAuth(makeHttpHandlerFunc(s.handleUnlikePost), s.Store))
+	r.HandleFunc("/posts/{id}/likes", withJWTAuth(makeHttpHandlerFunc(s.handlePostlikes), s.Store))
+	r.HandleFunc("/posts/{id}/comments", withJWTAuth(makeHttpHandlerFunc(s.handlePostComments), s.Store))
+	r.HandleFunc("comments/{id}", withJWTAuth(makeHttpHandlerFunc(s.handleCommentsByID), s.Store))
+	r.HandleFunc("comments/{id}/like", withJWTAuth(makeHttpHandlerFunc(s.handleLikeComment), s.Store))
+	r.HandleFunc("comments/{id}/unlike", withJWTAuth(makeHttpHandlerFunc(s.handleUnlikeComment), s.Store))
 	http.ListenAndServe(s.ListenAddr, r)
 }
 
@@ -153,17 +152,23 @@ func (s *ApiServer) handleUnfollow(w http.ResponseWriter, r *http.Request) error
 	return WriteJson(w, http.StatusOK, fmt.Sprintf("Unfollowed user with id: %v", req.FollowingID))
 }
 
-func (s *ApiServer) handleGetUserPosts(w http.ResponseWriter, r *http.Request) error {
-	if r.Method != "GET" {
-		return fmt.Errorf("Unexpected method")
+func (s *ApiServer) handleUserPosts(w http.ResponseWriter, r *http.Request) error {
+	if r.Method == "POST" {
+		return s.handleCreatePost(w, r)
 	}
 
+	if r.Method == "GET" {
+		return s.handleGetUserPosts(w, r)
+	}
+	return nil
+}
+
+func (s *ApiServer) handleGetUserPosts(w http.ResponseWriter, r *http.Request) error {
 	username := getUserName(r)
 	posts, err := s.Store.GetUserPosts(username)
 	if err != nil {
 		return fmt.Errorf("Error getting user posts: %v", err)
 	}
-
 	return WriteJson(w, http.StatusOK, posts)
 }
 
@@ -257,9 +262,6 @@ func (s *ApiServer) handleDeleteUser(w http.ResponseWriter, r *http.Request) err
 }
 
 func (s *ApiServer) handleCreatePost(w http.ResponseWriter, r *http.Request) error {
-	if r.Method != "POST" {
-		return fmt.Errorf("Unexpected method %s", r.Method)
-	}
 	req := new(CreatePostRequest)
 
 	if err := s.Store.CreatePost(req); err != nil {

@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"os"
 
 	_ "github.com/lib/pq"
 )
@@ -38,7 +39,8 @@ type PostgresStore struct {
 }
 
 func NewPostgresStore() (*PostgresStore, error) {
-	connStr := "user=postgres dbname=postgres password=gosoc999 sslmode=disable"
+	connStr := fmt.Sprintf("user=%s dbname=%s password=%s sslmode=disable",
+		os.Getenv("DB_USER"), os.Getenv("DB_NAME"), os.Getenv("DB_PASSWORD"))
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		return nil, err
@@ -116,8 +118,7 @@ func (s *PostgresStore) CreateTables() error {
 	return err
 }
 
-// CRUD OPERATIONS FOR USERS
-
+// CRUD OPERATIONS FOR USERSf
 func (s *PostgresStore) GetUser(name string) (*User, error) {
 	rows, err := s.db.Query(`SELECT * FROM users WHERE userName = $1`, name)
 	if err != nil {

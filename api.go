@@ -44,6 +44,26 @@ func (s *ApiServer) Run() {
 	http.ListenAndServe(s.ListenAddr, r)
 }
 
+func (s *ApiServer) handleSignUp(w http.ResponseWriter, r *http.Request) error {
+	if r.Method != "POST" {
+		return fmt.Errorf("Unexpected method %s", r.Method)
+	}
+	req := new(CreateUserRequest)
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		return err
+	}
+
+	user, err := NewUser(req)
+	if err != nil {
+		return err
+	}
+
+	if err := s.Store.CreateUser(user); err != nil {
+		return err
+	}
+	return WriteJson(w, http.StatusOK, user)
+}
+
 func (s *ApiServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 	if r.Method != "POST" {
 		return WriteJson(w, http.StatusBadRequest, &ApiError{Error: "Unexpected method"})
@@ -75,6 +95,7 @@ func (s *ApiServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 	return WriteJson(w, http.StatusOK, res)
 }
 
+// HANDLERS FOR USERS
 func (s *ApiServer) handleUsersByName(w http.ResponseWriter, r *http.Request) error {
 	if r.Method == "GET" {
 		return s.handleGetUserProfile(w, r)
@@ -90,6 +111,46 @@ func (s *ApiServer) handleUsersByName(w http.ResponseWriter, r *http.Request) er
 	return nil
 }
 
+func (s *ApiServer) handleUpdateUser(w http.ResponseWriter, r *http.Request) error {
+	username := getUserName(r)
+
+	req := new(CreateUserRequest)
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		return err
+	}
+
+	user, err := NewUser(req)
+	if err != nil {
+		return err
+	}
+
+	if err := s.Store.UpdateUser(username, user); err != nil {
+		return err
+	}
+	return WriteJson(w, http.StatusOK, user)
+}
+
+func (s *ApiServer) handleDeleteUser(w http.ResponseWriter, r *http.Request) error {
+	username := getUserName(r)
+
+	if err := s.Store.DeleteUser(username); err != nil {
+		return err
+	}
+	deletedMsg := fmt.Sprintf("User %s deleted successfully", username)
+	return WriteJson(w, http.StatusOK, &ApiError{Error: deletedMsg})
+}
+
+func (s *ApiServer) handleGetUserProfile(w http.ResponseWriter, r *http.Request) error {
+	username := getUserName(r)
+
+	user, err := s.Store.GetUserProfile(username)
+	if err != nil {
+		return err
+	}
+	return WriteJson(w, http.StatusOK, user)
+}
+
+// HANDLERS FOR USER FOLLOWS
 func (s *ApiServer) handleGetFollowers(w http.ResponseWriter, r *http.Request) error {
 	if r.Method != "GET" {
 		return fmt.Errorf("Unexpected method: %v", r.Method)
@@ -152,6 +213,7 @@ func (s *ApiServer) handleUnfollow(w http.ResponseWriter, r *http.Request) error
 	return WriteJson(w, http.StatusOK, fmt.Sprintf("Unfollowed user with id: %v", req.FollowingID))
 }
 
+// HANDLERS FOR USER POSTS
 func (s *ApiServer) handleUserPosts(w http.ResponseWriter, r *http.Request) error {
 	if r.Method == "POST" {
 		return s.handleCreatePost(w, r)
@@ -172,6 +234,7 @@ func (s *ApiServer) handleGetUserPosts(w http.ResponseWriter, r *http.Request) e
 	return WriteJson(w, http.StatusOK, posts)
 }
 
+// HANDLERS FOR POSTS AS A RESOURCE
 func (s *ApiServer) handlePostsByID(w http.ResponseWriter, r *http.Request) error {
 	if r.Method == "GET" {
 		return s.handleGetPostByID(w, r)
@@ -185,80 +248,6 @@ func (s *ApiServer) handlePostsByID(w http.ResponseWriter, r *http.Request) erro
 		return s.handleDeletePostByID(w, r)
 	}
 	return nil
-}
-
-func (s *ApiServer) handleCommentsByID(w http.ResponseWriter, r *http.Request) error {
-	if r.Method == "GET" {
-		return s.handleGetCommentByID(w, r)
-	}
-
-	if r.Method == "UPDATE" {
-		return s.handleUpdateCommentByID(w, r)
-	}
-
-	if r.Method == "DELETE" {
-		return s.handleDeleteCommentByID(w, r)
-	}
-	return nil
-}
-
-func (s *ApiServer) handleSignUp(w http.ResponseWriter, r *http.Request) error {
-	if r.Method != "POST" {
-		return fmt.Errorf("Unexpected method %s", r.Method)
-	}
-	req := new(CreateUserRequest)
-	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
-		return err
-	}
-
-	user, err := NewUser(req)
-	if err != nil {
-		return err
-	}
-
-	if err := s.Store.CreateUser(user); err != nil {
-		return err
-	}
-	return WriteJson(w, http.StatusOK, user)
-}
-
-func (s *ApiServer) handleGetUserProfile(w http.ResponseWriter, r *http.Request) error {
-	username := getUserName(r)
-
-	user, err := s.Store.GetUserProfile(username)
-	if err != nil {
-		return err
-	}
-	return WriteJson(w, http.StatusOK, user)
-}
-
-func (s *ApiServer) handleUpdateUser(w http.ResponseWriter, r *http.Request) error {
-	username := getUserName(r)
-
-	req := new(CreateUserRequest)
-	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
-		return err
-	}
-
-	user, err := NewUser(req)
-	if err != nil {
-		return err
-	}
-
-	if err := s.Store.UpdateUser(username, user); err != nil {
-		return err
-	}
-	return WriteJson(w, http.StatusOK, user)
-}
-
-func (s *ApiServer) handleDeleteUser(w http.ResponseWriter, r *http.Request) error {
-	username := getUserName(r)
-
-	if err := s.Store.DeleteUser(username); err != nil {
-		return err
-	}
-	deletedMsg := fmt.Sprintf("User %s deleted successfully", username)
-	return WriteJson(w, http.StatusOK, &ApiError{Error: deletedMsg})
 }
 
 func (s *ApiServer) handleCreatePost(w http.ResponseWriter, r *http.Request) error {
@@ -312,6 +301,80 @@ func (s *ApiServer) handleDeletePostByID(w http.ResponseWriter, r *http.Request)
 	}
 	deletedMsg := fmt.Sprintf("Post with id: %d deleted successfully", id)
 	return WriteJson(w, http.StatusOK, &ApiError{Error: deletedMsg})
+}
+
+// HANDLERS FOR POST LIKES
+func (s *ApiServer) handlePostlikes(w http.ResponseWriter, r *http.Request) error {
+	if r.Method == "POST" {
+		return s.handleLikePost(w, r)
+	}
+
+	if r.Method == "DELETE" {
+		return s.handleUnlikePost(w, r)
+	}
+	return nil
+}
+
+func (s *ApiServer) handleLikePost(w http.ResponseWriter, r *http.Request) error {
+	req := new(LikeRequest)
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		return fmt.Errorf("Error decoding like request")
+	}
+
+	err := s.Store.LikePost(req)
+	if err != nil {
+		return fmt.Errorf("Failed to like post")
+	}
+	return WriteJson(w, http.StatusOK, fmt.Sprintf("Liked post:%v  successfully", req.ResourceID))
+}
+
+func (s *ApiServer) handleUnlikePost(w http.ResponseWriter, r *http.Request) error {
+	req := new(LikeRequest)
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		return fmt.Errorf("Error decoding like request")
+	}
+
+	err := s.Store.UnlikePost(req)
+	if err != nil {
+		return fmt.Errorf("Failed to like post")
+	}
+	return WriteJson(w, http.StatusOK, fmt.Sprintf("Unliked post:%v successfully", req.ResourceID))
+}
+
+func makeHttpHandlerFunc(f apiFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := f(w, r); err != nil {
+			WriteJson(w, http.StatusBadRequest, &ApiError{Error: err.Error()})
+		}
+	}
+}
+
+// HANDLERS FOR COMMENTS
+func (s *ApiServer) handlePostComments(w http.ResponseWriter, r *http.Request) error {
+	if r.Method == "GET" {
+		return s.handleGetCommentsFromPost(w, r)
+	}
+
+	if r.Method == "POST" {
+		return s.handleCreateComment(w, r)
+	}
+
+	return nil
+}
+
+func (s *ApiServer) handleCommentsByID(w http.ResponseWriter, r *http.Request) error {
+	if r.Method == "GET" {
+		return s.handleGetCommentByID(w, r)
+	}
+
+	if r.Method == "UPDATE" {
+		return s.handleUpdateCommentByID(w, r)
+	}
+
+	if r.Method == "DELETE" {
+		return s.handleDeleteCommentByID(w, r)
+	}
+	return nil
 }
 
 func (s *ApiServer) handleGetCommentsFromPost(w http.ResponseWriter, r *http.Request) error {
@@ -380,55 +443,6 @@ func (s *ApiServer) handleDeleteCommentByID(w http.ResponseWriter, r *http.Reque
 	return WriteJson(w, http.StatusOK, &ApiError{Error: deletedMsg})
 }
 
-func (s *ApiServer) handlePostlikes(w http.ResponseWriter, r *http.Request) error {
-	if r.Method == "POST" {
-		return s.handleLikePost(w, r)
-	}
-
-	if r.Method == "DELETE" {
-		return s.handleUnlikePost(w, r)
-	}
-	return nil
-}
-
-func (s *ApiServer) handleLikePost(w http.ResponseWriter, r *http.Request) error {
-	req := new(LikeRequest)
-	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
-		return fmt.Errorf("Error decoding like request")
-	}
-
-	err := s.Store.LikePost(req)
-	if err != nil {
-		return fmt.Errorf("Failed to like post")
-	}
-	return WriteJson(w, http.StatusOK, fmt.Sprintf("Liked post:%v  successfully", req.ResourceID))
-}
-
-func (s *ApiServer) handleUnlikePost(w http.ResponseWriter, r *http.Request) error {
-	req := new(LikeRequest)
-	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
-		return fmt.Errorf("Error decoding like request")
-	}
-
-	err := s.Store.UnlikePost(req)
-	if err != nil {
-		return fmt.Errorf("Failed to like post")
-	}
-	return WriteJson(w, http.StatusOK, fmt.Sprintf("Unliked post:%v successfully", req.ResourceID))
-}
-
-func (s *ApiServer) handlePostComments(w http.ResponseWriter, r *http.Request) error {
-	if r.Method == "GET" {
-		return s.handleGetCommentsFromPost(w, r)
-	}
-
-	if r.Method == "POST" {
-		return s.handleCreateComment(w, r)
-	}
-
-	return nil
-}
-
 func (s *ApiServer) handleLikeComment(w http.ResponseWriter, r *http.Request) error {
 	if r.Method != "POST" {
 		return fmt.Errorf("Unexpected method %s", r.Method)
@@ -463,14 +477,6 @@ func (s *ApiServer) handleUnlikeComment(w http.ResponseWriter, r *http.Request) 
 	return WriteJson(w, http.StatusOK, fmt.Sprintf("Unliked post: %v successfuly", req.ResourceID))
 }
 
-func makeHttpHandlerFunc(f apiFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if err := f(w, r); err != nil {
-			WriteJson(w, http.StatusBadRequest, &ApiError{Error: err.Error()})
-		}
-	}
-}
-
 // HELPER FUNCTIONS
 func WriteJson(w http.ResponseWriter, status int, v any) error {
 	w.WriteHeader(status)
@@ -492,6 +498,7 @@ func getUserName(r *http.Request) string {
 	return username
 }
 
+// API-SPECIFIC TYPES
 type apiFunc func(http.ResponseWriter, *http.Request) error
 
 type ApiError struct {

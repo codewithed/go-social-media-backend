@@ -28,20 +28,21 @@ type UserProfile struct {
 }
 
 type Post struct {
-	ID          int64     `json:"id"`
-	UserID      int64     `json:"userID"`
-	MediaUrl    string    `json:"mediaUrl"`
-	Content     string    `json:"content"`
-	Created_at  time.Time `json:"createdAt"`
-	Last_edited time.Time `json:"editedAt"`
+	ID             int64     `json:"id"`
+	UserID         int64     `json:"userID"`
+	MediaUrl       string    `json:"mediaUrl"`
+	Content        string    `json:"content"`
+	Created_at     time.Time `json:"createdAt"`
+	Last_edited_at time.Time `json:"lastEditedAt"`
 }
 
 type Comment struct {
-	ID         int64     `json:"id"`
-	Text       string    `json:"text"`
-	UserID     int64     `json:"userID"`
-	PostID     int64     `json:"postID"`
-	Created_at time.Time `json:"createdAt"`
+	ID             int64     `json:"id"`
+	Text           string    `json:"text"`
+	UserID         int64     `json:"userID"`
+	PostID         int64     `json:"postID"`
+	Created_at     time.Time `json:"createdAt"`
+	Last_edited_at time.Time `json:"lastEditedAt"`
 }
 
 type Follow struct {

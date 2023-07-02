@@ -74,6 +74,7 @@ func (s *PostgresStore) CreateTables() error {
 		content VARCHAR(255) NOT NULL,
 		mediaUrl VARCHAR(10000),
 		created_at timestamptz NOT NULL,
+		last_edited_at timestamptz,
 		FOREIGN KEY (userID) REFERENCES users (id) ON DELETE CASCADE
 	);
 
@@ -83,6 +84,7 @@ func (s *PostgresStore) CreateTables() error {
 		postID BIGINT NOT NULL,
 		content VARCHAR(255) NOT NULL,
 		created_at timestamptz NOT NULL,
+		last_edited_at timestamptz,
 		CONSTRAINT fk_userID FOREIGN KEY (userID) REFERENCES users (id) ON DELETE CASCADE,
 		CONSTRAINT fk_postID FOREIGN KEY (postID) REFERENCES posts (id) ON DELETE CASCADE
 	);

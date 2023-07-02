@@ -26,7 +26,6 @@ func ValidateJWT(tokenString string) (*jwt.Token, error) {
 			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 		}
 
-		// Secret is a []byte containing your secret, e.g []byte("my_secret_key")
 		return []byte(secret), nil
 	})
 }

@@ -1,10 +1,27 @@
 package main
 
-import "log"
+import (
+	"fmt"
+	"log"
+	"os"
+
+	"github.com/joho/godotenv"
+)
 
 func main() {
+	// load env variables
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// setup database
 	store, err := NewPostgresStore()
 	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err := store.db.Ping(); err != nil {
 		log.Fatal(err)
 	}
 
@@ -12,6 +29,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	server, err := NewApiServer("3000", store)
+	// setup server
+	portNumber := fmt.Sprintf(":%s", os.Getenv("PORT"))
+	server := NewApiServer(portNumber, store)
 	server.Run()
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -15,16 +16,19 @@ type ApiServer struct {
 	Store      Storage
 }
 
-func NewApiServer(addr string, store Storage) (*ApiServer, error) {
+func NewApiServer(addr string, store Storage) *ApiServer {
 	return &ApiServer{
 		ListenAddr: addr,
 		Store:      store,
-	}, nil
+	}
 }
 
 func (s *ApiServer) Run() {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"message": "welcome"}`))
+	})
 	r.HandleFunc("/signup", makeHttpHandlerFunc(s.handleSignUp))
 	r.HandleFunc("/login", makeHttpHandlerFunc(s.handleLogin))
 	r.HandleFunc("/{username}", makeHttpHandlerFunc(s.handleUsersByName))
@@ -38,10 +42,13 @@ func (s *ApiServer) Run() {
 	r.HandleFunc("/posts/{id}/unlike", withJWTAuth(makeHttpHandlerFunc(s.handleUnlikePost), s.Store))
 	r.HandleFunc("/posts/{id}/likes", withJWTAuth(makeHttpHandlerFunc(s.handlePostlikes), s.Store))
 	r.HandleFunc("/posts/{id}/comments", withJWTAuth(makeHttpHandlerFunc(s.handlePostComments), s.Store))
-	r.HandleFunc("comments/{id}", withJWTAuth(makeHttpHandlerFunc(s.handleCommentsByID), s.Store))
-	r.HandleFunc("comments/{id}/like", withJWTAuth(makeHttpHandlerFunc(s.handleLikeComment), s.Store))
-	r.HandleFunc("comments/{id}/unlike", withJWTAuth(makeHttpHandlerFunc(s.handleUnlikeComment), s.Store))
-	http.ListenAndServe(s.ListenAddr, r)
+	r.HandleFunc("/comments/{id}", withJWTAuth(makeHttpHandlerFunc(s.handleCommentsByID), s.Store))
+	r.HandleFunc("/comments/{id}/like", withJWTAuth(makeHttpHandlerFunc(s.handleLikeComment), s.Store))
+	r.HandleFunc("/comments/{id}/unlike", withJWTAuth(makeHttpHandlerFunc(s.handleUnlikeComment), s.Store))
+	err := http.ListenAndServe(s.ListenAddr, r)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func (s *ApiServer) handleSignUp(w http.ResponseWriter, r *http.Request) error {

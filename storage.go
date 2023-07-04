@@ -77,7 +77,7 @@ func (s *PostgresStore) CreateTables() error {
 		last_edited_at timestamptz,
 		FOREIGN KEY (userID) REFERENCES users (id) ON DELETE CASCADE
 	);
-
+	
 	CREATE TABLE comments (
 		id SERIAL PRIMARY KEY,
 		userID BIGINT NOT NULL,
@@ -85,17 +85,17 @@ func (s *PostgresStore) CreateTables() error {
 		content VARCHAR(255) NOT NULL,
 		created_at timestamptz NOT NULL,
 		last_edited_at timestamptz,
-		CONSTRAINT fk_userID FOREIGN KEY (userID) REFERENCES users (id) ON DELETE CASCADE,
-		CONSTRAINT fk_postID FOREIGN KEY (postID) REFERENCES posts (id) ON DELETE CASCADE
+		FOREIGN KEY (userID) REFERENCES users (id) ON DELETE CASCADE,
+		FOREIGN KEY (postID) REFERENCES posts (id) ON DELETE CASCADE
 	);
-
+	
 	CREATE TABLE follows (
 		id SERIAL PRIMARY KEY,
 		userID BIGINT NOT NULL,
 		followerID BIGINT NOT NULL,
 		created_at timestamptz NOT NULL,
-		CONSTRAINT fk_userID FOREIGN KEY (userID) REFERENCES users (id) ON DELETE CASCADE,
-		CONSTRAINT fk_followerID FOREIGN KEY (followerID) REFERENCES users (id) ON DELETE CASCADE
+		FOREIGN KEY (userID) REFERENCES users (id) ON DELETE CASCADE,
+		FOREIGN KEY (followerID) REFERENCES users (id) ON DELETE CASCADE
 	);
 	
 	CREATE TABLE post_likes (
@@ -103,18 +103,19 @@ func (s *PostgresStore) CreateTables() error {
 		userID BIGINT NOT NULL,
 		postID BIGINT NOT NULL,
 		created_at timestamptz NOT NULL,
-		CONSTRAINT fk_userID FOREIGN KEY (userID) REFERENCES users (id) ON DELETE CASCADE,
-		CONSTRAINT fk_postID FOREIGN KEY (postID) REFERENCES posts (id) ON DELETE CASCADE
-	)
+		FOREIGN KEY (userID) REFERENCES users (id) ON DELETE CASCADE,
+		FOREIGN KEY (postID) REFERENCES posts (id) ON DELETE CASCADE
+	);
 	
 	CREATE TABLE comment_likes (
 		id SERIAL PRIMARY KEY,
 		userID BIGINT NOT NULL,
-		postID BIGINT NOT NULL,
+		commentID BIGINT NOT NULL,
 		created_at timestamptz NOT NULL,
-		CONSTRAINT fk_userID FOREIGN KEY (userID) REFERENCES users (id) ON DELETE CASCADE,
-		CONSTRAINT fk_postID FOREIGN KEY (commentID) REFERENCES comments (id) ON DELETE CASCADE
-	);`
+		FOREIGN KEY (userID) REFERENCES users (id) ON DELETE CASCADE,
+		FOREIGN KEY (commentID) REFERENCES comments (id) ON DELETE CASCADE
+	);
+	`
 
 	_, err := s.db.Exec(query)
 	return err

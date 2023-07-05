@@ -58,7 +58,7 @@ func (s *PostgresStore) Init() error {
 }
 
 func (s *PostgresStore) CreateTables() error {
-	query := `CREATE TABLE users (
+	query := `CREATE TABLE IF NOT EXISTS users (
 		id SERIAL PRIMARY KEY,
 		userName VARCHAR(25) NOT NULL UNIQUE,
 		name VARCHAR(225),
@@ -68,7 +68,7 @@ func (s *PostgresStore) CreateTables() error {
 		created_at timestamptz NOT NULL DEFAULT timezone('UTC', now())
 	);
 	
-	CREATE TABLE posts (
+	CREATE TABLE IF NOT EXISTS posts (
 		id SERIAL PRIMARY KEY,
 		userID BIGINT NOT NULL,
 		content VARCHAR(255) NOT NULL,
@@ -77,7 +77,7 @@ func (s *PostgresStore) CreateTables() error {
 		FOREIGN KEY (userID) REFERENCES users (id) ON DELETE CASCADE
 	);
 	
-	CREATE TABLE comments (
+	CREATE TABLE IF NOT EXISTS comments (
 		id SERIAL PRIMARY KEY,
 		userID BIGINT NOT NULL,
 		postID BIGINT NOT NULL,
@@ -87,7 +87,7 @@ func (s *PostgresStore) CreateTables() error {
 		FOREIGN KEY (postID) REFERENCES posts (id) ON DELETE CASCADE
 	);
 	
-	CREATE TABLE follows (
+	CREATE TABLE IF NOT EXISTS follows (
 		id SERIAL PRIMARY KEY,
 		userID BIGINT NOT NULL,
 		followerID BIGINT NOT NULL,
@@ -96,7 +96,7 @@ func (s *PostgresStore) CreateTables() error {
 		FOREIGN KEY (followerID) REFERENCES users (id) ON DELETE CASCADE
 	);
 	
-	CREATE TABLE post_likes (
+	CREATE TABLE IF NOT EXISTS post_likes (
 		id SERIAL PRIMARY KEY,
 		userID BIGINT NOT NULL,
 		postID BIGINT NOT NULL,
@@ -105,7 +105,7 @@ func (s *PostgresStore) CreateTables() error {
 		FOREIGN KEY (postID) REFERENCES posts (id) ON DELETE CASCADE
 	);
 	
-	CREATE TABLE comment_likes (
+	CREATE TABLE IF NOT EXISTS comment_likes (
 		id SERIAL PRIMARY KEY,
 		userID BIGINT NOT NULL,
 		commentID BIGINT NOT NULL,
@@ -133,46 +133,43 @@ func (s *PostgresStore) GetUser(name string) (*User, error) {
 }
 
 func (s *PostgresStore) GetUserProfile(username string) (*UserProfile, error) {
-	tx, err := s.db.Begin()
+	user_info, err := s.db.Query(`SELECT id, userName, name, bio FROM users WHERE userName = $1`, username)
 	if err != nil {
-		tx.Rollback()
-		return nil, fmt.Errorf("failed to begin transaction")
+		return nil, err
 	}
-
-	user_info, err := tx.Query(`SELECT userName, name, bio FROM users WHERE userName = $1`, username)
-	if err != nil {
-		tx.Rollback()
-		return nil, fmt.Errorf("failed to query user info")
-	}
+	defer user_info.Close()
 
 	profile := new(UserProfile)
-	if err := user_info.Scan(
-		&profile.UserID,
-		&profile.UserName,
-		&profile.Name,
-		&profile.Bio,
-	); err != nil {
-		return nil, fmt.Errorf("failed to scan user info")
+	if user_info.Next() {
+		if err := user_info.Scan(
+			&profile.UserID,
+			&profile.UserName,
+			&profile.Name,
+			&profile.Bio,
+		); err != nil {
+			return nil, err
+		}
 	}
 
-	user_stats, err := tx.Query(`SELECT
+	user_stats, err := s.db.Query(`SELECT
     (SELECT COUNT(*) FROM posts WHERE userID = $1) AS post_count,
     (SELECT COUNT(*) FROM follows WHERE userID = $1) AS follower_count,
     (SELECT COUNT(*) FROM follows WHERE followerID = $1) AS following_count;`, profile.UserID)
 	if err != nil {
-		tx.Rollback()
-		return nil, fmt.Errorf("failed to query user stats")
+		return nil, err
+	}
+	defer user_stats.Close()
+
+	if user_stats.Next() {
+		if err := user_stats.Scan(
+			&profile.Posts,
+			&profile.Followers,
+			&profile.Following,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan user stats")
+		}
 	}
 
-	if err := user_stats.Scan(
-		&profile.Posts,
-		&profile.Followers,
-		&profile.Following,
-	); err != nil {
-		return nil, fmt.Errorf("failed to scan user stats")
-	}
-
-	tx.Commit()
 	return profile, nil
 }
 

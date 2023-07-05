@@ -94,7 +94,7 @@ type LoginResponse struct {
 }
 
 func NewUser(req *CreateUserRequest) (*User, error) {
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.MaxCost)
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
 	}

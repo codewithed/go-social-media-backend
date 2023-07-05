@@ -65,7 +65,7 @@ func (s *PostgresStore) CreateTables() error {
 		email VARCHAR(255) NOT NULL,
 		bio VARCHAR(255),
 		passwordHash VARCHAR(1000) NOT NULL,
-		created_at timestamptz NOT NULL
+		created_at timestamptz NOT NULL DEFAULT timezone('UTC', now())
 	);
 	
 	CREATE TABLE posts (
@@ -73,27 +73,53 @@ func (s *PostgresStore) CreateTables() error {
 		userID BIGINT NOT NULL,
 		content VARCHAR(255) NOT NULL,
 		mediaUrl VARCHAR(10000),
-		created_at timestamptz NOT NULL,
+		created_at timestamptz NOT NULL DEFAULT timezone('UTC', now()),
 		last_edited_at timestamptz,
 		FOREIGN KEY (userID) REFERENCES users (id) ON DELETE CASCADE
 	);
+	
+	CREATE TRIGGER update_posts_last_edited_at
+	BEFORE UPDATE ON posts
+	FOR EACH ROW
+	EXECUTE FUNCTION update_posts_last_edited_at_function();
+	
+	CREATE FUNCTION update_posts_last_edited_at_function()
+	RETURNS TRIGGER AS $$
+	BEGIN
+		NEW.last_edited_at = timezone('UTC', now());
+		RETURN NEW;
+	END;
+	$$ LANGUAGE plpgsql;
 	
 	CREATE TABLE comments (
 		id SERIAL PRIMARY KEY,
 		userID BIGINT NOT NULL,
 		postID BIGINT NOT NULL,
 		content VARCHAR(255) NOT NULL,
-		created_at timestamptz NOT NULL,
+		created_at timestamptz NOT NULL DEFAULT timezone('UTC', now()),
 		last_edited_at timestamptz,
 		FOREIGN KEY (userID) REFERENCES users (id) ON DELETE CASCADE,
 		FOREIGN KEY (postID) REFERENCES posts (id) ON DELETE CASCADE
 	);
 	
+	CREATE TRIGGER update_comments_last_edited_at
+	BEFORE UPDATE ON comments
+	FOR EACH ROW
+	EXECUTE FUNCTION update_comments_last_edited_at_function();
+	
+	CREATE FUNCTION update_comments_last_edited_at_function()
+	RETURNS TRIGGER AS $$
+	BEGIN
+		NEW.last_edited_at = timezone('UTC', now());
+		RETURN NEW;
+	END;
+	$$ LANGUAGE plpgsql;
+	
 	CREATE TABLE follows (
 		id SERIAL PRIMARY KEY,
 		userID BIGINT NOT NULL,
 		followerID BIGINT NOT NULL,
-		created_at timestamptz NOT NULL,
+		created_at timestamptz NOT NULL DEFAULT timezone('UTC', now()),
 		FOREIGN KEY (userID) REFERENCES users (id) ON DELETE CASCADE,
 		FOREIGN KEY (followerID) REFERENCES users (id) ON DELETE CASCADE
 	);
@@ -102,7 +128,7 @@ func (s *PostgresStore) CreateTables() error {
 		id SERIAL PRIMARY KEY,
 		userID BIGINT NOT NULL,
 		postID BIGINT NOT NULL,
-		created_at timestamptz NOT NULL,
+		created_at timestamptz NOT NULL DEFAULT timezone('UTC', now()),
 		FOREIGN KEY (userID) REFERENCES users (id) ON DELETE CASCADE,
 		FOREIGN KEY (postID) REFERENCES posts (id) ON DELETE CASCADE
 	);
@@ -111,10 +137,11 @@ func (s *PostgresStore) CreateTables() error {
 		id SERIAL PRIMARY KEY,
 		userID BIGINT NOT NULL,
 		commentID BIGINT NOT NULL,
-		created_at timestamptz NOT NULL,
+		created_at timestamptz NOT NULL DEFAULT timezone('UTC', now()),
 		FOREIGN KEY (userID) REFERENCES users (id) ON DELETE CASCADE,
 		FOREIGN KEY (commentID) REFERENCES comments (id) ON DELETE CASCADE
 	);
+	
 	`
 
 	_, err := s.db.Exec(query)
@@ -181,8 +208,8 @@ func (s *PostgresStore) GetUserProfile(username string) (*UserProfile, error) {
 
 func (s *PostgresStore) CreateUser(user *User) error {
 	_, err := s.db.Exec(`INSERT INTO users (userName, name, email, bio, passwordHash)
-	 VALUES ($1, $2, $3, $4)`,
-		user.UserName, user.Email, user.Bio, user.PasswordHash)
+	 VALUES ($1, $2, $3, $4, $5)`,
+		user.UserName, user.Name, user.Email, user.Bio, user.PasswordHash)
 
 	return err
 }

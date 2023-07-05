@@ -52,9 +52,11 @@ func (s *ApiServer) Run() {
 }
 
 func (s *ApiServer) handleSignUp(w http.ResponseWriter, r *http.Request) error {
-	if r.Method != "POST" {
+	if r.Method != http.MethodPost {
 		return fmt.Errorf("Unexpected method %s", r.Method)
 	}
+
+	defer r.Body.Close()
 	req := new(CreateUserRequest)
 	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
 		return err
@@ -68,6 +70,7 @@ func (s *ApiServer) handleSignUp(w http.ResponseWriter, r *http.Request) error {
 	if err := s.Store.CreateUser(user); err != nil {
 		return err
 	}
+
 	return WriteJson(w, http.StatusOK, user)
 }
 

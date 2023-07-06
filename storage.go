@@ -138,7 +138,6 @@ func (s *PostgresStore) GetUserProfile(username string) (*UserProfile, error) {
 		return nil, fmt.Errorf("user %s not found", username)
 	}
 
-	fmt.Println(user_id)
 	// get user info
 	user_info, err := s.db.Query(`SELECT id, userName, name, bio FROM users WHERE id = $1`, user_id)
 	if err != nil {
@@ -201,7 +200,7 @@ func (s *PostgresStore) UpdateUser(username string, user *UpdateUserRequest) err
 	}
 
 	if user.UserName != "" {
-		_, err := s.db.Exec(`UPDATE users SET userName = $1 WHERE id = $2 AND $1 != $2`,
+		_, err := s.db.Exec(`UPDATE users SET userName = $1 WHERE id = $2 AND userName != $1`,
 			user.UserName, user_id)
 		if err != nil {
 			return err
@@ -209,7 +208,7 @@ func (s *PostgresStore) UpdateUser(username string, user *UpdateUserRequest) err
 	}
 
 	if user.Name != "" {
-		_, err := s.db.Exec(`UPDATE users SET name = $1 WHERE id = $2 AND $1 != $2`,
+		_, err := s.db.Exec(`UPDATE users SET name = $1 WHERE id = $2 AND name != $1`,
 			user.Name, user_id)
 		if err != nil {
 			return err
@@ -217,7 +216,7 @@ func (s *PostgresStore) UpdateUser(username string, user *UpdateUserRequest) err
 	}
 
 	if user.Email != "" {
-		_, err := s.db.Exec(`UPDATE users SET email = $1 WHERE id = $2 AND $1 != $2`,
+		_, err := s.db.Exec(`UPDATE users SET email = $1 WHERE id = $2 AND email != $1`,
 			user.Email, user_id)
 		if err != nil {
 			return err
@@ -225,7 +224,7 @@ func (s *PostgresStore) UpdateUser(username string, user *UpdateUserRequest) err
 	}
 
 	if user.Bio != "" {
-		_, err := s.db.Exec(`UPDATE users SET bio = $1 WHERE id = $2 AND $1 != $2`,
+		_, err := s.db.Exec(`UPDATE users SET bio = $1 WHERE id = $2 AND bio != $1`,
 			user.Bio, user_id)
 		if err != nil {
 			return err
@@ -233,7 +232,7 @@ func (s *PostgresStore) UpdateUser(username string, user *UpdateUserRequest) err
 	}
 
 	if user.PasswordHash != "" {
-		_, err := s.db.Exec(`UPDATE users SET passwordHash = $1 WHERE id = $2 AND $1 != $2`,
+		_, err := s.db.Exec(`UPDATE users SET passwordHash = $1 WHERE id = $2 AND passwordHash != $1`,
 			user.PasswordHash, user_id)
 		if err != nil {
 			return err

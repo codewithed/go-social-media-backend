@@ -138,6 +138,7 @@ func (s *PostgresStore) GetUserProfile(username string) (*UserProfile, error) {
 		return nil, fmt.Errorf("user %s not found", username)
 	}
 
+	fmt.Println(user_id)
 	// get user info
 	user_info, err := s.db.Query(`SELECT id, userName, name, bio FROM users WHERE id = $1`, user_id)
 	if err != nil {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type ApiServer struct {
@@ -124,20 +126,31 @@ func (s *ApiServer) handleUsersByName(w http.ResponseWriter, r *http.Request) er
 func (s *ApiServer) handleUpdateUser(w http.ResponseWriter, r *http.Request) error {
 	username := getUserName(r)
 
-	req := new(CreateUserRequest)
+	req := &CreateUserRequest{}
 	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
 		return err
 	}
 
-	user, err := NewUser(req)
+	passwordHash, err := "", errors.New("")
+	if req.Password != "" {
+		passwordHash, err = generateHash(req.Password)
+	}
 	if err != nil {
-		return err
+		return nil
 	}
 
-	if err := s.Store.UpdateUser(username, user); err != nil {
+	finalReq := &UpdateUserRequest{
+		UserName:     req.UserName,
+		Name:         req.Name,
+		Email:        req.Email,
+		Bio:          req.Bio,
+		PasswordHash: string(passwordHash),
+	}
+
+	if err := s.Store.UpdateUser(username, finalReq); err != nil {
 		return err
 	}
-	return WriteJson(w, http.StatusOK, user)
+	return WriteJson(w, http.StatusOK, req)
 }
 
 func (s *ApiServer) handleDeleteUser(w http.ResponseWriter, r *http.Request) error {
@@ -155,7 +168,7 @@ func (s *ApiServer) handleGetUserProfile(w http.ResponseWriter, r *http.Request)
 
 	user, err := s.Store.GetUserProfile(username)
 	if err != nil {
-		return err
+		return WriteJson(w, http.StatusBadRequest, &ApiError{Error: err.Error()})
 	}
 	return WriteJson(w, http.StatusOK, user)
 }
@@ -506,6 +519,15 @@ func getID(r *http.Request) (int, error) {
 func getUserName(r *http.Request) string {
 	username := chi.URLParam(r, "username")
 	return username
+}
+
+func generateHash(pw string) (string, error) {
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+
+	return string(passwordHash), nil
 }
 
 // API-SPECIFIC TYPES

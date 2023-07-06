@@ -58,6 +58,14 @@ type CreateUserRequest struct {
 	Password string `json:"password"`
 }
 
+type UpdateUserRequest struct {
+	UserName     string `json:"userName"`
+	Name         string `json:"name"`
+	Email        string `json:"email"`
+	Bio          string `json:"bio"`
+	PasswordHash string `json:"passwordHash"`
+}
+
 type CreatePostRequest struct {
 	UserID   int64  `json:"userID"`
 	Content  string `json:"content"`

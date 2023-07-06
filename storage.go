@@ -13,7 +13,7 @@ type Storage interface {
 	GetUserProfile(username string) (*UserProfile, error)
 	CreateUser(user *User) error
 	DeleteUser(username string) error
-	UpdateUser(username string, user *User) error
+	UpdateUser(username string, user *UpdateUserRequest) error
 	GetUserPosts(username string) ([]*Post, error)
 	GetPost(id int) (*Post, error)
 	CreatePost(req *CreatePostRequest) error
@@ -133,7 +133,13 @@ func (s *PostgresStore) GetUser(name string) (*User, error) {
 }
 
 func (s *PostgresStore) GetUserProfile(username string) (*UserProfile, error) {
-	user_info, err := s.db.Query(`SELECT id, userName, name, bio FROM users WHERE userName = $1`, username)
+	user_id, err := s.getUserIDFromUserName(username)
+	if err != nil || user_id == 0 {
+		return nil, fmt.Errorf("user %s not found", username)
+	}
+
+	// get user info
+	user_info, err := s.db.Query(`SELECT id, userName, name, bio FROM users WHERE id = $1`, user_id)
 	if err != nil {
 		return nil, err
 	}
@@ -151,6 +157,7 @@ func (s *PostgresStore) GetUserProfile(username string) (*UserProfile, error) {
 		}
 	}
 
+	// get user stats
 	user_stats, err := s.db.Query(`SELECT
     (SELECT COUNT(*) FROM posts WHERE userID = $1) AS post_count,
     (SELECT COUNT(*) FROM follows WHERE userID = $1) AS follower_count,
@@ -186,37 +193,47 @@ func (s *PostgresStore) DeleteUser(username string) error {
 	return err
 }
 
-func (s *PostgresStore) UpdateUser(username string, user *User) error {
+func (s *PostgresStore) UpdateUser(username string, user *UpdateUserRequest) error {
+	user_id, err := s.getUserIDFromUserName(username)
+	if err != nil {
+		return err
+	}
+
 	if user.UserName != "" {
-		_, err := s.db.Exec(`UPDATE users SET userName = $1 WHERE userName = $2`, user.UserName, username)
+		_, err := s.db.Exec(`UPDATE users SET userName = $1 WHERE id = $2 AND $1 != $2`,
+			user.UserName, user_id)
 		if err != nil {
 			return err
 		}
 	}
 
 	if user.Name != "" {
-		_, err := s.db.Exec(`UPDATE users SET name = $1 WHERE userName = $2`, user.Name, username)
+		_, err := s.db.Exec(`UPDATE users SET name = $1 WHERE id = $2 AND $1 != $2`,
+			user.Name, user_id)
 		if err != nil {
 			return err
 		}
 	}
 
 	if user.Email != "" {
-		_, err := s.db.Exec(`UPDATE users SET email = $1 WHERE id = $2`, user.Email, username)
+		_, err := s.db.Exec(`UPDATE users SET email = $1 WHERE id = $2 AND $1 != $2`,
+			user.Email, user_id)
 		if err != nil {
 			return err
 		}
 	}
 
 	if user.Bio != "" {
-		_, err := s.db.Exec(`UPDATE users SET bio = $1 WHERE id = $2`, user.Bio, username)
+		_, err := s.db.Exec(`UPDATE users SET bio = $1 WHERE id = $2 AND $1 != $2`,
+			user.Bio, user_id)
 		if err != nil {
 			return err
 		}
 	}
 
 	if user.PasswordHash != "" {
-		_, err := s.db.Exec(`UPDATE users SET passwordHash = $1 WHERE id = $2`, user.PasswordHash, username)
+		_, err := s.db.Exec(`UPDATE users SET passwordHash = $1 WHERE id = $2 AND $1 != $2`,
+			user.PasswordHash, user_id)
 		if err != nil {
 			return err
 		}
@@ -503,10 +520,13 @@ func (s *PostgresStore) getUserIDFromUserName(username string) (int, error) {
 	if err != nil {
 		return id, fmt.Errorf("failed to get userID from username: %v", err)
 	}
+	defer idrow.Close()
 
-	err = idrow.Scan(&id)
-	if err != nil {
-		return id, fmt.Errorf("failed to get scan userID from row")
+	if idrow.Next() {
+		err := idrow.Scan(&id)
+		if err != nil {
+			return id, err
+		}
 	}
 
 	return id, nil

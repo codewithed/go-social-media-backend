@@ -77,7 +77,7 @@ func (s *ApiServer) handleSignUp(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (s *ApiServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
-	if r.Method != "POST" {
+	if r.Method != http.MethodPost {
 		return WriteJson(w, http.StatusBadRequest, &ApiError{Error: "Unexpected method"})
 	}
 	req := new(LoginRequest)
@@ -109,15 +109,15 @@ func (s *ApiServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 
 // HANDLERS FOR USERS
 func (s *ApiServer) handleUsersByName(w http.ResponseWriter, r *http.Request) error {
-	if r.Method == "GET" {
+	if r.Method == http.MethodGet {
 		return s.handleGetUserProfile(w, r)
 	}
 
-	if r.Method == "PUT" || r.Method == "PATCH" {
+	if r.Method == http.MethodPut || r.Method == http.MethodPatch {
 		return s.handleUpdateUser(w, r)
 	}
 
-	if r.Method == "DELETE" {
+	if r.Method == http.MethodDelete {
 		return s.handleDeleteUser(w, r)
 	}
 	return nil
@@ -175,7 +175,7 @@ func (s *ApiServer) handleGetUserProfile(w http.ResponseWriter, r *http.Request)
 
 // HANDLERS FOR USER FOLLOWS
 func (s *ApiServer) handleGetFollowers(w http.ResponseWriter, r *http.Request) error {
-	if r.Method != "GET" {
+	if r.Method != http.MethodGet {
 		return fmt.Errorf("Unexpected method: %v", r.Method)
 	}
 
@@ -189,7 +189,7 @@ func (s *ApiServer) handleGetFollowers(w http.ResponseWriter, r *http.Request) e
 }
 
 func (s *ApiServer) handleGetFollowing(w http.ResponseWriter, r *http.Request) error {
-	if r.Method != "GET" {
+	if r.Method != http.MethodGet {
 		return fmt.Errorf("Unexpected method: %v", r.Method)
 	}
 
@@ -203,7 +203,7 @@ func (s *ApiServer) handleGetFollowing(w http.ResponseWriter, r *http.Request) e
 }
 
 func (s *ApiServer) handleFollow(w http.ResponseWriter, r *http.Request) error {
-	if r.Method != "POST" {
+	if r.Method != http.MethodPost {
 		return fmt.Errorf("Unexpected method: %s", r.Method)
 	}
 	req := new(FollowRequest)
@@ -220,7 +220,7 @@ func (s *ApiServer) handleFollow(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (s *ApiServer) handleUnfollow(w http.ResponseWriter, r *http.Request) error {
-	if r.Method != "DELETE" {
+	if r.Method != http.MethodDelete {
 		return fmt.Errorf("Unexpected method: %s", r.Method)
 	}
 	req := new(FollowRequest)
@@ -238,11 +238,11 @@ func (s *ApiServer) handleUnfollow(w http.ResponseWriter, r *http.Request) error
 
 // HANDLERS FOR USER POSTS
 func (s *ApiServer) handleUserPosts(w http.ResponseWriter, r *http.Request) error {
-	if r.Method == "POST" {
+	if r.Method == http.MethodPost {
 		return s.handleCreatePost(w, r)
 	}
 
-	if r.Method == "GET" {
+	if r.Method == http.MethodGet {
 		return s.handleGetUserPosts(w, r)
 	}
 	return nil
@@ -374,11 +374,11 @@ func makeHttpHandlerFunc(f apiFunc) http.HandlerFunc {
 
 // HANDLERS FOR COMMENTS
 func (s *ApiServer) handlePostComments(w http.ResponseWriter, r *http.Request) error {
-	if r.Method == "GET" {
+	if r.Method == http.MethodGet {
 		return s.handleGetCommentsFromPost(w, r)
 	}
 
-	if r.Method == "POST" {
+	if r.Method == http.MethodPost {
 		return s.handleCreateComment(w, r)
 	}
 
@@ -386,15 +386,15 @@ func (s *ApiServer) handlePostComments(w http.ResponseWriter, r *http.Request) e
 }
 
 func (s *ApiServer) handleCommentsByID(w http.ResponseWriter, r *http.Request) error {
-	if r.Method == "GET" {
+	if r.Method == http.MethodGet {
 		return s.handleGetCommentByID(w, r)
 	}
 
-	if r.Method == "UPDATE" {
+	if r.Method == http.MethodPut || r.Method == http.MethodPatch {
 		return s.handleUpdateCommentByID(w, r)
 	}
 
-	if r.Method == "DELETE" {
+	if r.Method == http.MethodDelete {
 		return s.handleDeleteCommentByID(w, r)
 	}
 	return nil
@@ -467,7 +467,7 @@ func (s *ApiServer) handleDeleteCommentByID(w http.ResponseWriter, r *http.Reque
 }
 
 func (s *ApiServer) handleLikeComment(w http.ResponseWriter, r *http.Request) error {
-	if r.Method != "POST" {
+	if r.Method != http.MethodPost {
 		return fmt.Errorf("Unexpected method %s", r.Method)
 	}
 
@@ -484,7 +484,7 @@ func (s *ApiServer) handleLikeComment(w http.ResponseWriter, r *http.Request) er
 }
 
 func (s *ApiServer) handleUnlikeComment(w http.ResponseWriter, r *http.Request) error {
-	if r.Method != "DELETE" {
+	if r.Method != http.MethodDelete {
 		return fmt.Errorf("Unexpected method %s", r.Method)
 	}
 

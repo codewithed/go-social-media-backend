@@ -120,7 +120,12 @@ func (s *PostgresStore) CreateTables() error {
 
 // CRUD OPERATIONS FOR USERS
 func (s *PostgresStore) GetUser(name string) (*User, error) {
-	rows, err := s.db.Query(`SELECT * FROM users WHERE userName = $1`, name)
+	user_id, err := s.getUserIDFromUserName(name)
+	if err != nil || user_id == 0 {
+		return nil, fmt.Errorf("user %s not found", name)
+	}
+
+	rows, err := s.db.Query(`SELECT * FROM users WHERE id = $1`, user_id)
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +194,12 @@ func (s *PostgresStore) CreateUser(user *User) error {
 }
 
 func (s *PostgresStore) DeleteUser(username string) error {
-	_, err := s.db.Exec(`DELETE FROM users WHERE userName = $1`, username)
+	user_id, err := s.getUserIDFromUserName(username)
+	if err != nil || user_id == 0 {
+		return fmt.Errorf("user %s not found", username)
+	}
+
+	_, err = s.db.Exec(`DELETE FROM users WHERE id = $1`, user_id)
 	return err
 }
 

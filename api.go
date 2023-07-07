@@ -85,6 +85,7 @@ func (s *ApiServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
+	// check if user exists in db
 	user, err := s.Store.GetUser(req.UserName)
 	if err != nil {
 		return err
@@ -99,7 +100,7 @@ func (s *ApiServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	res := LoginResponse{
+	res := &LoginResponse{
 		UserName: user.UserName,
 		Token:    token,
 	}

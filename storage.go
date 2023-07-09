@@ -65,7 +65,7 @@ func (s *PostgresStore) CreateTables() error {
 		email VARCHAR(255) NOT NULL,
 		bio VARCHAR(255),
 		passwordHash VARCHAR(1000) NOT NULL,
-		created_at timestamptz NOT NULL DEFAULT timezone('UTC', now())
+		created_at timestamptz NOT NULL
 	);
 	
 	CREATE TABLE IF NOT EXISTS posts (
@@ -73,7 +73,7 @@ func (s *PostgresStore) CreateTables() error {
 		userID BIGINT NOT NULL,
 		content VARCHAR(255) NOT NULL,
 		mediaUrl VARCHAR(10000),
-		created_at timestamptz NOT NULL DEFAULT timezone('UTC', now()),
+		created_at timestamptz NOT NULL,
 		FOREIGN KEY (userID) REFERENCES users (id) ON DELETE CASCADE
 	);
 	
@@ -82,7 +82,7 @@ func (s *PostgresStore) CreateTables() error {
 		userID BIGINT NOT NULL,
 		postID BIGINT NOT NULL,
 		content VARCHAR(255) NOT NULL,
-		created_at timestamptz NOT NULL DEFAULT timezone('UTC', now()),
+		created_at timestamptz NOT NULL,
 		FOREIGN KEY (userID) REFERENCES users (id) ON DELETE CASCADE,
 		FOREIGN KEY (postID) REFERENCES posts (id) ON DELETE CASCADE
 	);
@@ -91,7 +91,7 @@ func (s *PostgresStore) CreateTables() error {
 		id SERIAL PRIMARY KEY,
 		userID BIGINT NOT NULL,
 		followerID BIGINT NOT NULL,
-		created_at timestamptz NOT NULL DEFAULT timezone('UTC', now()),
+		created_at timestamptz NOT NULL,
 		FOREIGN KEY (userID) REFERENCES users (id) ON DELETE CASCADE,
 		FOREIGN KEY (followerID) REFERENCES users (id) ON DELETE CASCADE
 	);
@@ -100,7 +100,7 @@ func (s *PostgresStore) CreateTables() error {
 		id SERIAL PRIMARY KEY,
 		userID BIGINT NOT NULL,
 		postID BIGINT NOT NULL,
-		created_at timestamptz NOT NULL DEFAULT timezone('UTC', now()),
+		created_at timestamptz NOT NULL,
 		FOREIGN KEY (userID) REFERENCES users (id) ON DELETE CASCADE,
 		FOREIGN KEY (postID) REFERENCES posts (id) ON DELETE CASCADE
 	);
@@ -109,7 +109,7 @@ func (s *PostgresStore) CreateTables() error {
 		id SERIAL PRIMARY KEY,
 		userID BIGINT NOT NULL,
 		commentID BIGINT NOT NULL,
-		created_at timestamptz NOT NULL DEFAULT timezone('UTC', now()),
+		created_at timestamptz NOT NULL,
 		FOREIGN KEY (userID) REFERENCES users (id) ON DELETE CASCADE,
 		FOREIGN KEY (commentID) REFERENCES comments (id) ON DELETE CASCADE
 	);`
@@ -186,9 +186,9 @@ func (s *PostgresStore) GetUserProfile(username string) (*UserProfile, error) {
 }
 
 func (s *PostgresStore) CreateUser(user *User) error {
-	_, err := s.db.Exec(`INSERT INTO users (userName, name, email, bio, passwordHash)
-	 VALUES ($1, $2, $3, $4, $5)`,
-		user.UserName, user.Name, user.Email, user.Bio, user.PasswordHash)
+	_, err := s.db.Exec(`INSERT INTO users (userName, name, email, bio, passwordHash, created_at)
+	 VALUES ($1, $2, $3, $4, $5, $6)`,
+		user.UserName, user.Name, user.Email, user.Bio, user.PasswordHash, user.Created_at)
 
 	return err
 }
@@ -256,9 +256,10 @@ func (s *PostgresStore) UpdateUser(username string, user *UpdateUserRequest) err
 func (s *PostgresStore) GetUserPosts(username string) ([]*Post, error) {
 	user_id, err := s.getUserIDFromUserName(username)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get user ID from username")
+		return nil, fmt.Errorf("user %s not found", username)
 	}
 
+	// get user's posts
 	rows, err := s.db.Query(`SELECT * FROM posts WHERE userID = $1`, user_id)
 	if err != nil {
 		return nil, err
@@ -268,7 +269,7 @@ func (s *PostgresStore) GetUserPosts(username string) ([]*Post, error) {
 	for rows.Next() {
 		post, err := ScanIntoPost(rows)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Failed to scan post row: %v", err)
 		}
 		posts = append(posts, post)
 	}
@@ -290,11 +291,11 @@ func (s *PostgresStore) GetPost(id int) (*Post, error) {
 }
 
 func (s *PostgresStore) CreatePost(req *CreatePostRequest) error {
-	_, err := s.db.Exec(`INSERT INTO posts (userID, mediaUrl, content) 
+	_, err := s.db.Exec(`INSERT INTO posts (userID, mediaUrl, content, created_at) 
 	VALUES ($1, $2, $3)`,
 		req.UserID,
 		req.MediaUrl,
-		req.Content)
+		req.Content, req.Created_at)
 
 	return err
 }
@@ -359,7 +360,7 @@ func (s *PostgresStore) CreateComment(req *CreateCommentRequest) error {
 	VALUES ($1, $2, $3)`,
 		req.Text,
 		req.UserName,
-		req.PostID)
+		req.PostID, req.Created_at)
 
 	return err
 }
@@ -437,7 +438,7 @@ func (s *PostgresStore) CreateFollow(req *FollowRequest) error {
 	_, err := s.db.Exec(`INSERT INTO follows (userID, followerID) 
 	VALUES ($1, $2)`,
 		req.UserID,
-		req.FollowingID)
+		req.FollowingID, req.Created_at)
 
 	return err
 }
@@ -487,11 +488,12 @@ func ScanIntoUser(rows *sql.Rows) (*User, error) {
 
 func ScanIntoPost(rows *sql.Rows) (*Post, error) {
 	post := new(Post)
+
 	err := rows.Scan(
 		&post.ID,
 		&post.UserID,
-		&post.Content,
 		&post.MediaUrl,
+		&post.Content,
 		&post.Created_at,
 	)
 

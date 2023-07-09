@@ -197,7 +197,7 @@ func (s *ApiServer) handleGetFollowing(w http.ResponseWriter, r *http.Request) e
 	username := getUserName(r)
 	following, err := s.Store.GetFollowing(username)
 	if err != nil {
-		return fmt.Errorf("Couldn't get followers")
+		return fmt.Errorf("Couldn't get following")
 	}
 
 	return WriteJson(w, http.StatusOK, following)

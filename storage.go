@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"time"
 
 	_ "github.com/lib/pq"
 )
@@ -290,12 +291,12 @@ func (s *PostgresStore) GetPost(id int) (*Post, error) {
 	return nil, nil
 }
 
-func (s *PostgresStore) CreatePost(req *CreatePostRequest) error {
+func (s *PostgresStore) CreatePost(req *Post) error {
 	_, err := s.db.Exec(`INSERT INTO posts (userID, mediaUrl, content, created_at) 
 	VALUES ($1, $2, $3)`,
 		req.UserID,
 		req.MediaUrl,
-		req.Content, req.Created_at)
+		req.Content, time.Now().UTC())
 
 	return err
 }
@@ -356,11 +357,11 @@ func (s *PostgresStore) GetComment(id int) (*Comment, error) {
 }
 
 func (s *PostgresStore) CreateComment(req *CreateCommentRequest) error {
-	_, err := s.db.Exec(`INSERT INTO comments (text, userID, postID) 
-	VALUES ($1, $2, $3)`,
+	_, err := s.db.Exec(`INSERT INTO comments (text, userID, postID, created_at) 
+	VALUES ($1, $2, $3, $4)`,
 		req.Text,
 		req.UserName,
-		req.PostID, req.Created_at)
+		req.PostID, time.Now().UTC())
 
 	return err
 }
@@ -435,10 +436,10 @@ func (s *PostgresStore) GetFollowing(username string) ([]string, error) {
 }
 
 func (s *PostgresStore) CreateFollow(req *FollowRequest) error {
-	_, err := s.db.Exec(`INSERT INTO follows (userID, followerID) 
+	_, err := s.db.Exec(`INSERT INTO follows (userID, followerID, created_at) 
 	VALUES ($1, $2)`,
 		req.UserID,
-		req.FollowingID, req.Created_at)
+		req.FollowingID, time.Now().UTC())
 
 	return err
 }
@@ -451,7 +452,8 @@ func (s *PostgresStore) DeleteFollow(req *FollowRequest) error {
 }
 
 func (s *PostgresStore) LikePost(req *LikeRequest) error {
-	_, err := s.db.Exec(`INSERT INTO post_likes (userID, postID) VALUES($1, $2)`, req.UserID, req.ResourceID)
+	_, err := s.db.Exec(`INSERT INTO post_likes (userID, postID, created_at) VALUES($1, $2, $3)`,
+		req.UserID, req.ResourceID, time.Now().UTC())
 	return err
 }
 
@@ -461,7 +463,8 @@ func (s *PostgresStore) UnlikePost(req *LikeRequest) error {
 }
 
 func (s *PostgresStore) LikeComment(req *LikeRequest) error {
-	_, err := s.db.Exec(`INSERT INTO comment_likes (userID, commentID) VALUES($1, $2)`, req.UserID, req.ResourceID)
+	_, err := s.db.Exec(`INSERT INTO comment_likes (userID, commentID, created_at) VALUES($1, $2, $3)`,
+		req.UserID, req.ResourceID, time.Now().UTC())
 	return err
 }
 
@@ -488,7 +491,6 @@ func ScanIntoUser(rows *sql.Rows) (*User, error) {
 
 func ScanIntoPost(rows *sql.Rows) (*Post, error) {
 	post := new(Post)
-
 	err := rows.Scan(
 		&post.ID,
 		&post.UserID,

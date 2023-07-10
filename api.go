@@ -34,7 +34,7 @@ func (s *ApiServer) Run() {
 	r.HandleFunc("/signup", makeHttpHandlerFunc(s.handleSignUp))
 	r.HandleFunc("/login", makeHttpHandlerFunc(s.handleLogin))
 	r.HandleFunc("/{username}", makeHttpHandlerFunc(s.handleUsersByName))
-	r.HandleFunc("/{username}/posts", withJWTAuth(makeHttpHandlerFunc(s.handleUserPosts), s.Store))
+	r.HandleFunc("/{username}/posts", makeHttpHandlerFunc(s.handleUserPosts))
 	r.HandleFunc("/{username}/followers", makeHttpHandlerFunc(s.handleGetFollowers))
 	r.HandleFunc("/{username}/following", makeHttpHandlerFunc(s.handleGetFollowing))
 	r.HandleFunc("/{username}/follow", withJWTAuth(makeHttpHandlerFunc(s.handleFollow), s.Store))
@@ -78,7 +78,7 @@ func (s *ApiServer) handleSignUp(w http.ResponseWriter, r *http.Request) error {
 
 func (s *ApiServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 	if r.Method != http.MethodPost {
-		return WriteJson(w, http.StatusBadRequest, &ApiError{Error: "Unexpected method"})
+		return fmt.Errorf("Unexpected method %s", r.Method)
 	}
 	req := new(LoginRequest)
 	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
@@ -92,7 +92,7 @@ func (s *ApiServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	if !user.ValidPassword(req.Password) {
-		return WriteJson(w, http.StatusBadRequest, &ApiError{Error: "Access denied"})
+		return WriteJson(w, http.StatusBadRequest, fmt.Errorf("access denied"))
 	}
 
 	token, err := CreateJWT(user)
@@ -161,7 +161,7 @@ func (s *ApiServer) handleDeleteUser(w http.ResponseWriter, r *http.Request) err
 		return err
 	}
 	deletedMsg := fmt.Sprintf("User %s deleted successfully", username)
-	return WriteJson(w, http.StatusOK, &ApiError{Error: deletedMsg})
+	return WriteJson(w, http.StatusOK, fmt.Errorf(deletedMsg))
 }
 
 func (s *ApiServer) handleGetUserProfile(w http.ResponseWriter, r *http.Request) error {
@@ -169,7 +169,7 @@ func (s *ApiServer) handleGetUserProfile(w http.ResponseWriter, r *http.Request)
 
 	user, err := s.Store.GetUserProfile(username)
 	if err != nil {
-		return WriteJson(w, http.StatusBadRequest, &ApiError{Error: err.Error()})
+		return WriteJson(w, http.StatusBadRequest, fmt.Errorf(err.Error()))
 	}
 	return WriteJson(w, http.StatusOK, user)
 }
@@ -253,7 +253,7 @@ func (s *ApiServer) handleGetUserPosts(w http.ResponseWriter, r *http.Request) e
 	username := getUserName(r)
 	posts, err := s.Store.GetUserPosts(username)
 	if err != nil {
-		return fmt.Errorf("Error getting user posts: %v", err)
+		return err
 	}
 	return WriteJson(w, http.StatusOK, posts)
 }
@@ -324,7 +324,7 @@ func (s *ApiServer) handleDeletePostByID(w http.ResponseWriter, r *http.Request)
 		return err
 	}
 	deletedMsg := fmt.Sprintf("Post with id: %d deleted successfully", id)
-	return WriteJson(w, http.StatusOK, &ApiError{Error: deletedMsg})
+	return WriteJson(w, http.StatusOK, fmt.Errorf(deletedMsg))
 }
 
 // HANDLERS FOR POST LIKES
@@ -368,7 +368,7 @@ func (s *ApiServer) handleUnlikePost(w http.ResponseWriter, r *http.Request) err
 func makeHttpHandlerFunc(f apiFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := f(w, r); err != nil {
-			WriteJson(w, http.StatusBadRequest, &ApiError{Error: err.Error()})
+			WriteJson(w, http.StatusBadRequest, fmt.Errorf(err.Error()))
 		}
 	}
 }
@@ -464,7 +464,7 @@ func (s *ApiServer) handleDeleteCommentByID(w http.ResponseWriter, r *http.Reque
 		return err
 	}
 	deletedMsg := fmt.Sprintf("Deleted comment %v succesfully", id)
-	return WriteJson(w, http.StatusOK, &ApiError{Error: deletedMsg})
+	return WriteJson(w, http.StatusOK, fmt.Errorf(deletedMsg))
 }
 
 func (s *ApiServer) handleLikeComment(w http.ResponseWriter, r *http.Request) error {
@@ -533,7 +533,3 @@ func generateHash(pw string) (string, error) {
 
 // API-SPECIFIC TYPES
 type apiFunc func(http.ResponseWriter, *http.Request) error
-
-type ApiError struct {
-	Error string `json:"error"`
-}

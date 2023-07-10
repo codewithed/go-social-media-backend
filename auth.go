@@ -59,7 +59,7 @@ func withJWTAuth(handlerFunc http.HandlerFunc, s Storage) http.HandlerFunc {
 
 		// compare userID with that in the jwt token
 		claims := token.Claims.(jwt.MapClaims)
-		if user.ID != int64(claims["id"].(int)) {
+		if user.ID != int64(claims["userID"].(int)) {
 			permissionDenied(w)
 			return
 		}
@@ -69,6 +69,6 @@ func withJWTAuth(handlerFunc http.HandlerFunc, s Storage) http.HandlerFunc {
 }
 
 func permissionDenied(w http.ResponseWriter) {
-	WriteJson(w, http.StatusForbidden, &ApiError{Error: "permission denied"})
+	WriteJson(w, http.StatusForbidden, fmt.Errorf("access denied"))
 	return
 }

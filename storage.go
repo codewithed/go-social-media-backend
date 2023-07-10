@@ -260,7 +260,6 @@ func (s *PostgresStore) GetUserPosts(username string) ([]*Post, error) {
 		return nil, fmt.Errorf("user %s not found", username)
 	}
 
-	// get user's posts
 	rows, err := s.db.Query(`SELECT * FROM posts WHERE userID = $1`, user_id)
 	if err != nil {
 		return nil, err
@@ -274,7 +273,6 @@ func (s *PostgresStore) GetUserPosts(username string) ([]*Post, error) {
 		}
 		posts = append(posts, post)
 	}
-
 	return posts, nil
 }
 
@@ -494,8 +492,8 @@ func ScanIntoPost(rows *sql.Rows) (*Post, error) {
 	err := rows.Scan(
 		&post.ID,
 		&post.UserID,
-		&post.MediaUrl,
 		&post.Content,
+		&post.MediaUrl,
 		&post.Created_at,
 	)
 

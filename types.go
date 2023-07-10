@@ -30,8 +30,8 @@ type UserProfile struct {
 type Post struct {
 	ID         int64     `json:"id"`
 	UserID     int64     `json:"userID"`
-	MediaUrl   string    `json:"mediaUrl"`
 	Content    string    `json:"content"`
+	MediaUrl   string    `json:"mediaUrl"`
 	Created_at time.Time `json:"createdAt"`
 }
 

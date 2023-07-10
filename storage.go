@@ -291,7 +291,7 @@ func (s *PostgresStore) GetPost(id int) (*Post, error) {
 	return nil, nil
 }
 
-func (s *PostgresStore) CreatePost(req *Post) error {
+func (s *PostgresStore) CreatePost(req *CreatePostRequest) error {
 	_, err := s.db.Exec(`INSERT INTO posts (userID, mediaUrl, content, created_at) 
 	VALUES ($1, $2, $3)`,
 		req.UserID,

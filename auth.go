@@ -72,3 +72,5 @@ func permissionDenied(w http.ResponseWriter) {
 	WriteJson(w, http.StatusForbidden, fmt.Errorf("access denied"))
 	return
 }
+
+// I'm gonna have to add a diff jwt auth for resource based api routes

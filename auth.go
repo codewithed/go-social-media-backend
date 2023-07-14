@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/golang-jwt/jwt/v4"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func CreateJWT(user *User) (string, error) {
@@ -30,8 +31,16 @@ func ValidateJWT(tokenString string) (*jwt.Token, error) {
 	})
 }
 
-func withJWTAuth(handlerFunc http.HandlerFunc, s Storage) http.HandlerFunc {
+func generateHash(pw string) (string, error) {
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
 
+	return string(passwordHash), nil
+}
+
+func authoriseCurrentUser(handlerFunc http.HandlerFunc, s Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("calling JWT auth middleware")
 
@@ -51,7 +60,7 @@ func withJWTAuth(handlerFunc http.HandlerFunc, s Storage) http.HandlerFunc {
 
 		// get user from database
 		username := getUserName(r)
-		user, err := s.GetUser(username)
+		user, err := s.GetUserByName(username)
 		if err != nil {
 			permissionDenied(w)
 			return
@@ -74,3 +83,86 @@ func permissionDenied(w http.ResponseWriter) {
 }
 
 // I'm gonna have to add a diff jwt auth for resource based api routes
+func resourceBasedJWTauth(handlerfunc http.HandlerFunc, s Storage, resourceType string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("calling auth middleware")
+
+		tokenString := r.Header.Get("x-jwt-token")
+
+		token, err := ValidateJWT(tokenString)
+		if err != nil {
+			permissionDenied(w)
+			return
+		}
+		if !token.Valid {
+			permissionDenied(w)
+			return
+		}
+
+		// validate ownership of resource
+		resourceID, err := getID(r)
+		if err != nil {
+			permissionDenied(w)
+			return
+		}
+
+		claims := token.Claims.(jwt.MapClaims)
+		userID := claims["userID"].(int)
+
+		ok, err := validateOwnership(userID, resourceID, resourceType, s)
+		if !ok {
+			permissionDenied(w)
+			return
+		}
+		// allow or deny access to resource
+		handlerfunc(w, r)
+	}
+}
+
+func verifyUser(handlerFunc http.HandlerFunc, s Storage) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		tokenString := r.Header.Get("x-jwt-token")
+		token, err := ValidateJWT(tokenString)
+		if err != nil {
+			permissionDenied(w)
+			return
+		}
+		if !token.Valid {
+			permissionDenied(w)
+			return
+		}
+
+		claims := token.Claims.(jwt.MapClaims)
+		userID := claims["userID"].(int)
+
+		if _, err := s.GetUserByID(userID); err != nil {
+			permissionDenied(w)
+			return
+		}
+		handlerFunc(w, r)
+	}
+}
+
+func validateOwnership(userID, resourceID int, resourceType string, s Storage) (bool, error) {
+	if resourceType == "post" {
+		post, err := s.GetPost(resourceID)
+		if err != nil {
+			return false, err
+		}
+		if post.UserID != int64(userID) {
+			return false, nil
+		}
+		return true, nil
+	}
+	if resourceType == "comment" {
+		comment, err := s.GetComment(resourceID)
+		if err != nil {
+			return false, err
+		}
+		if comment.UserID != int64(userID) {
+			return false, nil
+		}
+		return true, nil
+	}
+	return false, fmt.Errorf("Invalid resource type: %v", resourceType)
+}

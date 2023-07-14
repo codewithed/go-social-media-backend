@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type ApiServer struct {
@@ -34,19 +33,19 @@ func (s *ApiServer) Run() {
 	r.HandleFunc("/signup", makeHttpHandlerFunc(s.handleSignUp))
 	r.HandleFunc("/login", makeHttpHandlerFunc(s.handleLogin))
 	r.HandleFunc("/{username}", makeHttpHandlerFunc(s.handleUsersByName))
-	r.HandleFunc("/{username}/posts", makeHttpHandlerFunc(s.handleUserPosts))
+	r.HandleFunc("/{username}/posts", authoriseCurrentUser(makeHttpHandlerFunc(s.handleUserPosts), s.Store))
 	r.HandleFunc("/{username}/followers", makeHttpHandlerFunc(s.handleGetFollowers))
 	r.HandleFunc("/{username}/following", makeHttpHandlerFunc(s.handleGetFollowing))
-	r.HandleFunc("/{username}/follow", withJWTAuth(makeHttpHandlerFunc(s.handleFollow), s.Store))
-	r.HandleFunc("/{username}/unfollow", withJWTAuth(makeHttpHandlerFunc(s.handleUnfollow), s.Store))
-	r.HandleFunc("/posts/{id}", withJWTAuth(makeHttpHandlerFunc(s.handlePostsByID), s.Store))
-	r.HandleFunc("/posts/{id}/like", withJWTAuth(makeHttpHandlerFunc(s.handleLikePost), s.Store))
-	r.HandleFunc("/posts/{id}/unlike", withJWTAuth(makeHttpHandlerFunc(s.handleUnlikePost), s.Store))
-	r.HandleFunc("/posts/{id}/likes", withJWTAuth(makeHttpHandlerFunc(s.handlePostlikes), s.Store))
-	r.HandleFunc("/posts/{id}/comments", withJWTAuth(makeHttpHandlerFunc(s.handlePostComments), s.Store))
-	r.HandleFunc("/comments/{id}", withJWTAuth(makeHttpHandlerFunc(s.handleCommentsByID), s.Store))
-	r.HandleFunc("/comments/{id}/like", withJWTAuth(makeHttpHandlerFunc(s.handleLikeComment), s.Store))
-	r.HandleFunc("/comments/{id}/unlike", withJWTAuth(makeHttpHandlerFunc(s.handleUnlikeComment), s.Store))
+	r.HandleFunc("/{username}/follow", authoriseCurrentUser(makeHttpHandlerFunc(s.handleFollow), s.Store))
+	r.HandleFunc("/{username}/unfollow", authoriseCurrentUser(makeHttpHandlerFunc(s.handleUnfollow), s.Store))
+	r.HandleFunc("/posts/{id}", resourceBasedJWTauth(makeHttpHandlerFunc(s.handlePostsByID), s.Store, "post"))
+	r.HandleFunc("/posts/{id}/like", verifyUser(makeHttpHandlerFunc(s.handleLikePost), s.Store))
+	r.HandleFunc("/posts/{id}/unlike", verifyUser(makeHttpHandlerFunc(s.handleUnlikePost), s.Store))
+	r.HandleFunc("/posts/{id}/likes", verifyUser(makeHttpHandlerFunc(s.handleGetPostlikes), s.Store))
+	r.HandleFunc("/posts/{id}/comments", verifyUser(makeHttpHandlerFunc(s.handlePostComments), s.Store))
+	r.HandleFunc("/comments/{id}", resourceBasedJWTauth(makeHttpHandlerFunc(s.handleCommentsByID), s.Store, "comment"))
+	r.HandleFunc("/comments/{id}/like", verifyUser(makeHttpHandlerFunc(s.handleLikeComment), s.Store))
+	r.HandleFunc("/comments/{id}/unlike", verifyUser(makeHttpHandlerFunc(s.handleUnlikeComment), s.Store))
 	err := http.ListenAndServe(s.ListenAddr, r)
 	if err != nil {
 		log.Fatal(err)
@@ -86,7 +85,7 @@ func (s *ApiServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	// check if user exists in db
-	user, err := s.Store.GetUser(req.UserName)
+	user, err := s.Store.GetUserByName(req.UserName)
 	if err != nil {
 		return err
 	}
@@ -260,15 +259,15 @@ func (s *ApiServer) handleGetUserPosts(w http.ResponseWriter, r *http.Request) e
 
 // HANDLERS FOR POSTS AS A RESOURCE
 func (s *ApiServer) handlePostsByID(w http.ResponseWriter, r *http.Request) error {
-	if r.Method == "GET" {
+	if r.Method == http.MethodGet {
 		return s.handleGetPostByID(w, r)
 	}
 
-	if r.Method == "PUT" || r.Method == "PATCH" {
+	if r.Method == http.MethodPut || r.Method == http.MethodPatch {
 		return s.handleUpdatePostByID(w, r)
 	}
 
-	if r.Method == "DELETE" {
+	if r.Method == http.MethodDelete {
 		return s.handleDeletePostByID(w, r)
 	}
 	return nil
@@ -328,13 +327,19 @@ func (s *ApiServer) handleDeletePostByID(w http.ResponseWriter, r *http.Request)
 }
 
 // HANDLERS FOR POST LIKES
-func (s *ApiServer) handlePostlikes(w http.ResponseWriter, r *http.Request) error {
-	if r.Method == "POST" {
-		return s.handleLikePost(w, r)
-	}
+func (s *ApiServer) handleGetPostlikes(w http.ResponseWriter, r *http.Request) error {
+	if r.Method == http.MethodGet {
+		id, err := getID(r)
+		if err != nil {
+			return err
+		}
 
-	if r.Method == "DELETE" {
-		return s.handleUnlikePost(w, r)
+		likedby, err := s.Store.GetPostLikes(id)
+		if err != nil {
+			return err
+		}
+
+		return WriteJson(w, http.StatusOK, likedby)
 	}
 	return nil
 }
@@ -520,15 +525,6 @@ func getID(r *http.Request) (int, error) {
 func getUserName(r *http.Request) string {
 	username := chi.URLParam(r, "username")
 	return username
-}
-
-func generateHash(pw string) (string, error) {
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
-	if err != nil {
-		return "", err
-	}
-
-	return string(passwordHash), nil
 }
 
 // API-SPECIFIC TYPES

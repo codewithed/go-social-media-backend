@@ -10,7 +10,8 @@ import (
 )
 
 type Storage interface {
-	GetUser(username string) (*User, error)
+	GetUserByName(username string) (*User, error)
+	GetUserByID(id int) (*User, error)
 	GetUserProfile(username string) (*UserProfile, error)
 	CreateUser(user *User) error
 	DeleteUser(username string) error
@@ -21,6 +22,7 @@ type Storage interface {
 	DeletePost(id int) error
 	UpdatePost(id int, req *CreatePostRequest) error
 	GetCommentsFromPost(postID int) ([]*Comment, error)
+	GetPostLikes(postID int) ([]string, error)
 	GetComment(id int) (*Comment, error)
 	CreateComment(req *CreateCommentRequest) error
 	DeleteComment(id int) error
@@ -120,13 +122,26 @@ func (s *PostgresStore) CreateTables() error {
 }
 
 // CRUD OPERATIONS FOR USERS
-func (s *PostgresStore) GetUser(name string) (*User, error) {
+func (s *PostgresStore) GetUserByName(name string) (*User, error) {
 	user_id, err := s.getUserIDFromUserName(name)
 	if err != nil || user_id == 0 {
 		return nil, fmt.Errorf("user %s not found", name)
 	}
 
 	rows, err := s.db.Query(`SELECT * FROM users WHERE id = $1`, user_id)
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		return ScanIntoUser(rows)
+	}
+
+	return nil, nil
+}
+
+func (s *PostgresStore) GetUserByID(id int) (*User, error) {
+	rows, err := s.db.Query(`SELECT * FROM users WHERE id = $1`, id)
 	if err != nil {
 		return nil, err
 	}
@@ -322,6 +337,25 @@ func (s *PostgresStore) UpdatePost(id int, req *CreatePostRequest) error {
 	return nil
 }
 
+func (s *PostgresStore) GetPostLikes(id int) ([]string, error) {
+	rows, err := s.db.Query(`SELECT * from post_likes WHERE id = $1`, id)
+	if err != nil {
+		return nil, err
+	}
+
+	likedBy := []string{}
+	for rows.Next() {
+		var name string
+		err := rows.Scan(&name)
+		if err != nil {
+			return nil, err
+		}
+		likedBy = append(likedBy, name)
+	}
+
+	return likedBy, nil
+}
+
 // CRUD OPERATIONS FOR COMMENTS
 func (s *PostgresStore) GetCommentsFromPost(postID int) ([]*Comment, error) {
 	rows, err := s.db.Query(`SELECT * FROM comments WHERE postID = $1`, postID)
@@ -383,6 +417,7 @@ func (s *PostgresStore) UpdateComment(id int, req *CreateCommentRequest) error {
 }
 
 // CRUD OPERATIONS FOR FOLLOWS
+func (s *PostgresStore) GetFollow()
 func (s *PostgresStore) GetFollowers(username string) ([]string, error) {
 	id, err := s.getUserIDFromUserName(username)
 	if err != nil {

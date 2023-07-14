@@ -42,8 +42,6 @@ func generateHash(pw string) (string, error) {
 
 func authoriseCurrentUser(handlerFunc http.HandlerFunc, s Storage) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("calling JWT auth middleware")
-
 		// get token string
 		tokenString := r.Header.Get("x-jwt-token")
 
@@ -68,7 +66,7 @@ func authoriseCurrentUser(handlerFunc http.HandlerFunc, s Storage) http.HandlerF
 
 		// compare userID with that in the jwt token
 		claims := token.Claims.(jwt.MapClaims)
-		if user.ID != int64(claims["userID"].(int)) {
+		if user.ID != int64(claims["userID"].(float64)) {
 			permissionDenied(w)
 			return
 		}
@@ -77,16 +75,13 @@ func authoriseCurrentUser(handlerFunc http.HandlerFunc, s Storage) http.HandlerF
 	}
 }
 
-func permissionDenied(w http.ResponseWriter) {
-	WriteJson(w, http.StatusForbidden, fmt.Errorf("access denied"))
-	return
+func permissionDenied(w http.ResponseWriter) error {
+	return WriteJson(w, http.StatusForbidden, fmt.Errorf("access denied"))
+
 }
 
-// I'm gonna have to add a diff jwt auth for resource based api routes
 func resourceBasedJWTauth(handlerfunc http.HandlerFunc, s Storage, resourceType string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("calling auth middleware")
-
 		tokenString := r.Header.Get("x-jwt-token")
 
 		token, err := ValidateJWT(tokenString)
@@ -107,14 +102,14 @@ func resourceBasedJWTauth(handlerfunc http.HandlerFunc, s Storage, resourceType 
 		}
 
 		claims := token.Claims.(jwt.MapClaims)
-		userID := claims["userID"].(int)
+		userID := int(claims["userID"].(float64))
 
 		ok, err := validateOwnership(userID, resourceID, resourceType, s)
 		if !ok {
 			permissionDenied(w)
 			return
 		}
-		// allow or deny access to resource
+
 		handlerfunc(w, r)
 	}
 }
@@ -133,7 +128,7 @@ func verifyUser(handlerFunc http.HandlerFunc, s Storage) http.HandlerFunc {
 		}
 
 		claims := token.Claims.(jwt.MapClaims)
-		userID := claims["userID"].(int)
+		userID := int(claims["userID"].(float64))
 
 		if _, err := s.GetUserByID(userID); err != nil {
 			permissionDenied(w)
@@ -149,6 +144,9 @@ func validateOwnership(userID, resourceID int, resourceType string, s Storage) (
 		if err != nil {
 			return false, err
 		}
+		if post == nil {
+			return false, fmt.Errorf("Couldn't get post")
+		}
 		if post.UserID != int64(userID) {
 			return false, nil
 		}
@@ -158,6 +156,9 @@ func validateOwnership(userID, resourceID int, resourceType string, s Storage) (
 		comment, err := s.GetComment(resourceID)
 		if err != nil {
 			return false, err
+		}
+		if comment == nil {
+			return false, fmt.Errorf("Couldn't get comment")
 		}
 		if comment.UserID != int64(userID) {
 			return false, nil

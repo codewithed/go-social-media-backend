@@ -129,6 +129,7 @@ func (s *PostgresStore) GetUserByName(name string) (*User, error) {
 	}
 
 	rows, err := s.db.Query(`SELECT * FROM users WHERE id = $1`, user_id)
+	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -142,6 +143,7 @@ func (s *PostgresStore) GetUserByName(name string) (*User, error) {
 
 func (s *PostgresStore) GetUserByID(id int) (*User, error) {
 	rows, err := s.db.Query(`SELECT * FROM users WHERE id = $1`, id)
+	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -276,6 +278,7 @@ func (s *PostgresStore) GetUserPosts(username string) ([]*Post, error) {
 	}
 
 	rows, err := s.db.Query(`SELECT * FROM posts WHERE userID = $1`, user_id)
+	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -293,6 +296,7 @@ func (s *PostgresStore) GetUserPosts(username string) ([]*Post, error) {
 
 func (s *PostgresStore) GetPost(id int) (*Post, error) {
 	rows, err := s.db.Query(`SELECT * FROM posts WHERE id = $1`, id)
+	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -306,7 +310,7 @@ func (s *PostgresStore) GetPost(id int) (*Post, error) {
 
 func (s *PostgresStore) CreatePost(req *CreatePostRequest) error {
 	_, err := s.db.Exec(`INSERT INTO posts (userID, mediaUrl, content, created_at) 
-	VALUES ($1, $2, $3)`,
+	VALUES ($1, $2, $3, $4)`,
 		req.UserID,
 		req.MediaUrl,
 		req.Content, time.Now().UTC())
@@ -339,6 +343,7 @@ func (s *PostgresStore) UpdatePost(id int, req *CreatePostRequest) error {
 
 func (s *PostgresStore) GetPostLikes(id int) ([]string, error) {
 	rows, err := s.db.Query(`SELECT * from post_likes WHERE id = $1`, id)
+	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -359,6 +364,7 @@ func (s *PostgresStore) GetPostLikes(id int) ([]string, error) {
 // CRUD OPERATIONS FOR COMMENTS
 func (s *PostgresStore) GetCommentsFromPost(postID int) ([]*Comment, error) {
 	rows, err := s.db.Query(`SELECT * FROM comments WHERE postID = $1`, postID)
+	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -377,6 +383,7 @@ func (s *PostgresStore) GetCommentsFromPost(postID int) ([]*Comment, error) {
 
 func (s *PostgresStore) GetComment(id int) (*Comment, error) {
 	rows, err := s.db.Query(`SELECT * FROM comments WHERE id = $1`, id)
+	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -417,7 +424,6 @@ func (s *PostgresStore) UpdateComment(id int, req *CreateCommentRequest) error {
 }
 
 // CRUD OPERATIONS FOR FOLLOWS
-func (s *PostgresStore) GetFollow()
 func (s *PostgresStore) GetFollowers(username string) ([]string, error) {
 	id, err := s.getUserIDFromUserName(username)
 	if err != nil {
@@ -425,6 +431,7 @@ func (s *PostgresStore) GetFollowers(username string) ([]string, error) {
 	}
 
 	rows, err := s.db.Query(`SELECT userName FROM follows WHERE userID = $1`, id)
+	defer rows.Close()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get followers row")
 	}
@@ -450,6 +457,7 @@ func (s *PostgresStore) GetFollowing(username string) ([]string, error) {
 	}
 
 	rows, err := s.db.Query(`SELECT userName FROM follows WHERE followerID = $1`, id)
+	defer rows.Close()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get following row")
 	}

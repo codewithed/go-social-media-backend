@@ -275,6 +275,9 @@ func (s *ApiServer) handlePostsByID(w http.ResponseWriter, r *http.Request) erro
 
 func (s *ApiServer) handleCreatePost(w http.ResponseWriter, r *http.Request) error {
 	req := new(CreatePostRequest)
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		return err
+	}
 
 	if err := s.Store.CreatePost(req); err != nil {
 		return err

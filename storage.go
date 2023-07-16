@@ -11,30 +11,30 @@ import (
 
 type Storage interface {
 	GetUserByName(username string) (*User, error)
-	GetUserByID(id int) (*User, error)
+	GetUserByID(id int64) (*User, error)
 	GetUserProfile(username string) (*UserProfile, error)
 	CreateUser(user *User) error
 	DeleteUser(username string) error
 	UpdateUser(username string, user *UpdateUserRequest) error
 	GetUserPosts(username string) ([]*Post, error)
-	GetPost(id int) (*Post, error)
+	GetPost(id int64) (*Post, error)
 	CreatePost(req *CreatePostRequest) error
-	DeletePost(id int) error
-	UpdatePost(id int, req *CreatePostRequest) error
-	GetCommentsFromPost(postID int) ([]*Comment, error)
-	GetPostLikes(postID int) ([]string, error)
-	GetComment(id int) (*Comment, error)
+	DeletePost(id int64) error
+	UpdatePost(id int64, req *CreatePostRequest) error
+	GetCommentsFromPost(postID int64) ([]*Comment, error)
+	GetPostLikes(postID int64) ([]string, error)
+	GetComment(id int64) (*Comment, error)
 	CreateComment(req *CreateCommentRequest) error
-	DeleteComment(id int) error
-	UpdateComment(id int, req *CreateCommentRequest) error
+	DeleteComment(id int64) error
+	UpdateComment(id int64, req *CreateCommentRequest) error
 	GetFollowers(username string) ([]string, error)
 	GetFollowing(username string) ([]string, error)
 	CreateFollow(req *FollowRequest) error
 	DeleteFollow(req *FollowRequest) error
-	LikePost(req *LikeRequest) error
-	UnlikePost(req *LikeRequest) error
-	LikeComment(req *LikeRequest) error
-	UnlikeComment(req *LikeRequest) error
+	LikePost(userID, postID int64) error
+	UnlikePost(userID, postID int64) error
+	LikeComment(userID, postID int64) error
+	UnlikeComment(userID, postID int64) error
 }
 
 type PostgresStore struct {
@@ -129,10 +129,10 @@ func (s *PostgresStore) GetUserByName(name string) (*User, error) {
 	}
 
 	rows, err := s.db.Query(`SELECT * FROM users WHERE id = $1`, user_id)
-	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		return ScanIntoUser(rows)
@@ -141,12 +141,12 @@ func (s *PostgresStore) GetUserByName(name string) (*User, error) {
 	return nil, nil
 }
 
-func (s *PostgresStore) GetUserByID(id int) (*User, error) {
+func (s *PostgresStore) GetUserByID(id int64) (*User, error) {
 	rows, err := s.db.Query(`SELECT * FROM users WHERE id = $1`, id)
-	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		return ScanIntoUser(rows)
@@ -278,10 +278,10 @@ func (s *PostgresStore) GetUserPosts(username string) ([]*Post, error) {
 	}
 
 	rows, err := s.db.Query(`SELECT * FROM posts WHERE userID = $1`, user_id)
-	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	posts := []*Post{}
 	for rows.Next() {
@@ -294,12 +294,12 @@ func (s *PostgresStore) GetUserPosts(username string) ([]*Post, error) {
 	return posts, nil
 }
 
-func (s *PostgresStore) GetPost(id int) (*Post, error) {
+func (s *PostgresStore) GetPost(id int64) (*Post, error) {
 	rows, err := s.db.Query(`SELECT * FROM posts WHERE id = $1`, id)
-	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		return ScanIntoPost(rows)
@@ -318,21 +318,21 @@ func (s *PostgresStore) CreatePost(req *CreatePostRequest) error {
 	return err
 }
 
-func (s *PostgresStore) DeletePost(id int) error {
+func (s *PostgresStore) DeletePost(id int64) error {
 	_, err := s.db.Exec(`DELETE FROM posts WHERE id = $1`, id)
 	return err
 }
 
-func (s *PostgresStore) UpdatePost(id int, req *CreatePostRequest) error {
+func (s *PostgresStore) UpdatePost(id int64, req *CreatePostRequest) error {
 	if req.Content != "" {
-		_, err := s.db.Exec(`UPDATE users SET content = $1 WHERE id = $2`, req.Content, id)
+		_, err := s.db.Exec(`UPDATE posts SET content = $1 WHERE id = $2`, req.Content, id)
 		if err != nil {
 			return err
 		}
 	}
 
 	if req.MediaUrl != "" {
-		_, err := s.db.Exec(`UPDATE users SET mediaUrl = $1 WHERE id = $2`, req.MediaUrl, id)
+		_, err := s.db.Exec(`UPDATE posts SET mediaUrl = $1 WHERE id = $2`, req.MediaUrl, id)
 		if err != nil {
 			return err
 		}
@@ -341,12 +341,12 @@ func (s *PostgresStore) UpdatePost(id int, req *CreatePostRequest) error {
 	return nil
 }
 
-func (s *PostgresStore) GetPostLikes(id int) ([]string, error) {
+func (s *PostgresStore) GetPostLikes(id int64) ([]string, error) {
 	rows, err := s.db.Query(`SELECT * from post_likes WHERE id = $1`, id)
-	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	likedBy := []string{}
 	for rows.Next() {
@@ -362,12 +362,12 @@ func (s *PostgresStore) GetPostLikes(id int) ([]string, error) {
 }
 
 // CRUD OPERATIONS FOR COMMENTS
-func (s *PostgresStore) GetCommentsFromPost(postID int) ([]*Comment, error) {
+func (s *PostgresStore) GetCommentsFromPost(postID int64) ([]*Comment, error) {
 	rows, err := s.db.Query(`SELECT * FROM comments WHERE postID = $1`, postID)
-	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	comments := []*Comment{}
 	for rows.Next() {
@@ -381,12 +381,12 @@ func (s *PostgresStore) GetCommentsFromPost(postID int) ([]*Comment, error) {
 	return comments, nil
 }
 
-func (s *PostgresStore) GetComment(id int) (*Comment, error) {
+func (s *PostgresStore) GetComment(id int64) (*Comment, error) {
 	rows, err := s.db.Query(`SELECT * FROM comments WHERE id = $1`, id)
-	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		return ScanIntoComment(rows)
@@ -405,12 +405,12 @@ func (s *PostgresStore) CreateComment(req *CreateCommentRequest) error {
 	return err
 }
 
-func (s *PostgresStore) DeleteComment(id int) error {
+func (s *PostgresStore) DeleteComment(id int64) error {
 	_, err := s.db.Exec(`DELETE FROM comments WHERE id = $1`, id)
 	return err
 }
 
-func (s *PostgresStore) UpdateComment(id int, req *CreateCommentRequest) error {
+func (s *PostgresStore) UpdateComment(id int64, req *CreateCommentRequest) error {
 	if req.Text != "" {
 		_, err := s.db.Exec(`UPDATE comments SET text = $1 WHERE id = $2`,
 			req.Text, id)
@@ -431,10 +431,10 @@ func (s *PostgresStore) GetFollowers(username string) ([]string, error) {
 	}
 
 	rows, err := s.db.Query(`SELECT userName FROM follows WHERE userID = $1`, id)
-	defer rows.Close()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get followers row")
 	}
+	defer rows.Close()
 
 	followers := []string{}
 	for rows.Next() {
@@ -443,8 +443,10 @@ func (s *PostgresStore) GetFollowers(username string) ([]string, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan user")
 		}
-
 		followers = append(followers, follower)
+	}
+	if followers == nil {
+		return nil, fmt.Errorf("User has no followers")
 	}
 
 	return followers, nil
@@ -457,10 +459,10 @@ func (s *PostgresStore) GetFollowing(username string) ([]string, error) {
 	}
 
 	rows, err := s.db.Query(`SELECT userName FROM follows WHERE followerID = $1`, id)
-	defer rows.Close()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get following row")
 	}
+	defer rows.Close()
 
 	following := []string{}
 	for rows.Next() {
@@ -478,7 +480,7 @@ func (s *PostgresStore) GetFollowing(username string) ([]string, error) {
 
 func (s *PostgresStore) CreateFollow(req *FollowRequest) error {
 	_, err := s.db.Exec(`INSERT INTO follows (userID, followerID, created_at) 
-	VALUES ($1, $2)`,
+	VALUES ($1, $2, $3)`,
 		req.UserID,
 		req.FollowingID, time.Now().UTC())
 
@@ -492,25 +494,25 @@ func (s *PostgresStore) DeleteFollow(req *FollowRequest) error {
 	return err
 }
 
-func (s *PostgresStore) LikePost(req *LikeRequest) error {
+func (s *PostgresStore) LikePost(userID, postID int64) error {
 	_, err := s.db.Exec(`INSERT INTO post_likes (userID, postID, created_at) VALUES($1, $2, $3)`,
-		req.UserID, req.ResourceID, time.Now().UTC())
+		userID, postID, time.Now().UTC())
 	return err
 }
 
-func (s *PostgresStore) UnlikePost(req *LikeRequest) error {
-	_, err := s.db.Exec(`DELETE FROM post_likes WHERE userID = $1 AND postID = $2`, req.UserID, req.ResourceID)
+func (s *PostgresStore) UnlikePost(userID, postID int64) error {
+	_, err := s.db.Exec(`DELETE FROM post_likes WHERE userID = $1 AND postID = $2`, userID, postID)
 	return err
 }
 
-func (s *PostgresStore) LikeComment(req *LikeRequest) error {
+func (s *PostgresStore) LikeComment(userID, commentID int64) error {
 	_, err := s.db.Exec(`INSERT INTO comment_likes (userID, commentID, created_at) VALUES($1, $2, $3)`,
-		req.UserID, req.ResourceID, time.Now().UTC())
+		userID, commentID, time.Now().UTC())
 	return err
 }
 
-func (s *PostgresStore) UnlikeComment(req *LikeRequest) error {
-	_, err := s.db.Exec(`DELETE FROM comment_likes WHERE userID = $1 AND commentID = $2`, req.UserID, req.ResourceID)
+func (s *PostgresStore) UnlikeComment(userID, commentID int64) error {
+	_, err := s.db.Exec(`DELETE FROM comment_likes WHERE userID = $1 AND commentID = $2`, userID, commentID)
 	return err
 }
 
@@ -569,8 +571,8 @@ func ScanIntoFollow(rows *sql.Rows) (*Follow, error) {
 }
 
 // HELPER FUNCTIONS
-func (s *PostgresStore) getUserIDFromUserName(username string) (int, error) {
-	var id int
+func (s *PostgresStore) getUserIDFromUserName(username string) (int64, error) {
+	var id int64
 	idrow, err := s.db.Query(`SELECT id FROM users WHERE username = $1`, username)
 	if err != nil {
 		return id, fmt.Errorf("failed to get userID from username: %v", err)

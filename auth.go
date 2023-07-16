@@ -102,7 +102,7 @@ func resourceBasedJWTauth(handlerfunc http.HandlerFunc, s Storage, resourceType 
 		}
 
 		claims := token.Claims.(jwt.MapClaims)
-		userID := int(claims["userID"].(float64))
+		userID := int64(claims["userID"].(float64))
 
 		ok, err := validateOwnership(userID, resourceID, resourceType, s)
 		if !ok {
@@ -128,7 +128,7 @@ func verifyUser(handlerFunc http.HandlerFunc, s Storage) http.HandlerFunc {
 		}
 
 		claims := token.Claims.(jwt.MapClaims)
-		userID := int(claims["userID"].(float64))
+		userID := int64(claims["userID"].(float64))
 
 		if _, err := s.GetUserByID(userID); err != nil {
 			permissionDenied(w)
@@ -138,7 +138,7 @@ func verifyUser(handlerFunc http.HandlerFunc, s Storage) http.HandlerFunc {
 	}
 }
 
-func validateOwnership(userID, resourceID int, resourceType string, s Storage) (bool, error) {
+func validateOwnership(userID, resourceID int64, resourceType string, s Storage) (bool, error) {
 	if resourceType == "post" {
 		post, err := s.GetPost(resourceID)
 		if err != nil {

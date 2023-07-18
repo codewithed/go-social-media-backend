@@ -6,5 +6,5 @@ A social media backend built using Go
 
 - Go standard library
 - Chi router
-- PostreSql database
+- PostgreSQL database
 - Docker

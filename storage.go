@@ -60,7 +60,6 @@ func (s *PostgresStore) Init() error {
 	return s.CreateTables()
 }
 
-// UNIQUE (userID, postID) UNIQUE (userID, commentID)
 func (s *PostgresStore) CreateTables() error {
 	query := `CREATE TABLE IF NOT EXISTS users (
 		id SERIAL PRIMARY KEY,
@@ -77,7 +76,7 @@ func (s *PostgresStore) CreateTables() error {
 		userID BIGINT NOT NULL,
 		content VARCHAR(255) NOT NULL,
 		mediaUrl VARCHAR(10000),
-		created_at timestamptz NOT NULL,
+		created_at timestamptz NOT NULL
 		FOREIGN KEY (userID) REFERENCES users (id) ON DELETE CASCADE
 	);
 	
@@ -105,6 +104,7 @@ func (s *PostgresStore) CreateTables() error {
 		userID BIGINT NOT NULL,
 		postID BIGINT NOT NULL,
 		created_at timestamptz NOT NULL,
+		UNIQUE (userID, postID),
 		FOREIGN KEY (userID) REFERENCES users (id) ON DELETE CASCADE,
 		FOREIGN KEY (postID) REFERENCES posts (id) ON DELETE CASCADE
 	);
@@ -114,6 +114,7 @@ func (s *PostgresStore) CreateTables() error {
 		userID BIGINT NOT NULL,
 		commentID BIGINT NOT NULL,
 		created_at timestamptz NOT NULL,
+		UNIQUE (userID, commentID),
 		FOREIGN KEY (userID) REFERENCES users (id) ON DELETE CASCADE,
 		FOREIGN KEY (commentID) REFERENCES comments (id) ON DELETE CASCADE
 	);`

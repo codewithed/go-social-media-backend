@@ -30,22 +30,23 @@ func (s *ApiServer) Run() {
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"message": "welcome"}`))
 	})
-	r.HandleFunc("/signup", makeHttpHandlerFunc(s.handleSignUp))
-	r.HandleFunc("/login", makeHttpHandlerFunc(s.handleLogin))
-	r.HandleFunc("/{username}", makeHttpHandlerFunc(s.handleUsersByName))
-	r.HandleFunc("/{username}/posts", authoriseCurrentUser(makeHttpHandlerFunc(s.handleUserPosts), s.Store))
-	r.HandleFunc("/{username}/followers", makeHttpHandlerFunc(s.handleGetFollowers))
-	r.HandleFunc("/{username}/following", makeHttpHandlerFunc(s.handleGetFollowing))
-	r.HandleFunc("/{username}/follow", authoriseCurrentUser(makeHttpHandlerFunc(s.handleFollow), s.Store))
-	r.HandleFunc("/{username}/unfollow", authoriseCurrentUser(makeHttpHandlerFunc(s.handleUnfollow), s.Store))
-	r.HandleFunc("/posts/{id}", resourceBasedJWTauth(makeHttpHandlerFunc(s.handlePostsByID), s.Store, "post"))
-	r.HandleFunc("/posts/{id}/like", verifyUser(makeHttpHandlerFunc(s.handleLikePost), s.Store))
-	r.HandleFunc("/posts/{id}/unlike", verifyUser(makeHttpHandlerFunc(s.handleUnlikePost), s.Store))
-	r.HandleFunc("/posts/{id}/likes", verifyUser(makeHttpHandlerFunc(s.handleGetPostlikes), s.Store))
-	r.HandleFunc("/posts/{id}/comments", verifyUser(makeHttpHandlerFunc(s.handlePostComments), s.Store))
-	r.HandleFunc("/comments/{id}", resourceBasedJWTauth(makeHttpHandlerFunc(s.handleCommentsByID), s.Store, "comment"))
-	r.HandleFunc("/comments/{id}/like", verifyUser(makeHttpHandlerFunc(s.handleLikeComment), s.Store))
-	r.HandleFunc("/comments/{id}/unlike", verifyUser(makeHttpHandlerFunc(s.handleUnlikeComment), s.Store))
+	r.HandleFunc("/signup", makeHttpHandlerFunc(s.handleSignUp))                                                        //tested
+	r.HandleFunc("/login", makeHttpHandlerFunc(s.handleLogin))                                                          //tested
+	r.HandleFunc("/{username}", makeHttpHandlerFunc(s.handleUsersByName))                                               //tested
+	r.Get("/{username}/posts", verifyUser(makeHttpHandlerFunc(s.handleUserPosts), s.Store))                             //tested
+	r.Post("/{username}/posts", authoriseCurrentUser(makeHttpHandlerFunc(s.handleUserPosts), s.Store))                  //tested
+	r.HandleFunc("/{username}/followers", makeHttpHandlerFunc(s.handleGetFollowers))                                    //tested
+	r.HandleFunc("/{username}/following", makeHttpHandlerFunc(s.handleGetFollowing))                                    //tested
+	r.HandleFunc("/{username}/follow", authoriseCurrentUser(makeHttpHandlerFunc(s.handleFollow), s.Store))              //tested
+	r.HandleFunc("/{username}/unfollow", authoriseCurrentUser(makeHttpHandlerFunc(s.handleUnfollow), s.Store))          //tested
+	r.HandleFunc("/posts/{id}", resourceBasedJWTauth(makeHttpHandlerFunc(s.handlePostsByID), s.Store, "post"))          //tested
+	r.HandleFunc("/posts/{id}/like", verifyUser(makeHttpHandlerFunc(s.handleLikePost), s.Store))                        //tested
+	r.HandleFunc("/posts/{id}/unlike", verifyUser(makeHttpHandlerFunc(s.handleUnlikePost), s.Store))                    //tested
+	r.HandleFunc("/posts/{id}/likes", verifyUser(makeHttpHandlerFunc(s.handleGetPostlikes), s.Store))                   //tested
+	r.HandleFunc("/posts/{id}/comments", verifyUser(makeHttpHandlerFunc(s.handlePostComments), s.Store))                //tested
+	r.HandleFunc("/comments/{id}", resourceBasedJWTauth(makeHttpHandlerFunc(s.handleCommentsByID), s.Store, "comment")) //tested
+	r.HandleFunc("/comments/{id}/like", verifyUser(makeHttpHandlerFunc(s.handleLikeComment), s.Store))                  //tested
+	r.HandleFunc("/comments/{id}/unlike", verifyUser(makeHttpHandlerFunc(s.handleUnlikeComment), s.Store))              //tested
 	err := http.ListenAndServe(s.ListenAddr, r)
 	if err != nil {
 		log.Fatal(err)
@@ -331,46 +332,61 @@ func (s *ApiServer) handleDeletePostByID(w http.ResponseWriter, r *http.Request)
 
 // HANDLERS FOR POST LIKES
 func (s *ApiServer) handleGetPostlikes(w http.ResponseWriter, r *http.Request) error {
-	if r.Method == http.MethodGet {
-		id, err := getID(r)
-		if err != nil {
-			return err
-		}
-
-		likedby, err := s.Store.GetPostLikes(id)
-		if err != nil {
-			return err
-		}
-
-		return WriteJson(w, http.StatusOK, likedby)
+	if r.Method != http.MethodGet {
+		return fmt.Errorf("Unexpected method: %s", r.Method)
 	}
-	return nil
+	id, err := getID(r)
+	if err != nil {
+		return err
+	}
+
+	likedby, err := s.Store.GetPostLikes(id)
+	if err != nil {
+		return err
+	}
+
+	return WriteJson(w, http.StatusOK, likedby)
 }
 
 func (s *ApiServer) handleLikePost(w http.ResponseWriter, r *http.Request) error {
-	req := new(LikeRequest)
-	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
-		return fmt.Errorf("Error decoding like request")
+	if r.Method != http.MethodPost {
+		return fmt.Errorf("Unexpected method %s", r.Method)
+	}
+	postID, err := getID(r)
+	if err != nil {
+		return err
 	}
 
-	err := s.Store.LikePost(req)
+	userID, err := getUserIDFromParams(r)
 	if err != nil {
+		return err
+	}
+
+	if err := s.Store.LikePost(userID, postID); err != nil {
 		return fmt.Errorf("Failed to like post")
 	}
-	return WriteJson(w, http.StatusOK, fmt.Sprintf("Liked post:%v  successfully", req.ResourceID))
+	return WriteJson(w, http.StatusOK, fmt.Sprintf("Liked post: %v successfully", postID))
 }
 
 func (s *ApiServer) handleUnlikePost(w http.ResponseWriter, r *http.Request) error {
-	req := new(LikeRequest)
-	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
-		return fmt.Errorf("Error decoding like request")
+	if r.Method != http.MethodDelete {
+		return fmt.Errorf("Unexpected method %s", r.Method)
 	}
 
-	err := s.Store.UnlikePost(req)
+	postID, err := getID(r)
 	if err != nil {
+		return err
+	}
+
+	userID, err := getUserIDFromParams(r)
+	if err != nil {
+		return err
+	}
+
+	if err := s.Store.UnlikePost(userID, postID); err != nil {
 		return fmt.Errorf("Failed to like post")
 	}
-	return WriteJson(w, http.StatusOK, fmt.Sprintf("Unliked post:%v successfully", req.ResourceID))
+	return WriteJson(w, http.StatusOK, fmt.Sprintf("Unliked post:%v successfully", postID))
 }
 
 func makeHttpHandlerFunc(f apiFunc) http.HandlerFunc {
@@ -423,11 +439,16 @@ func (s *ApiServer) handleGetCommentsFromPost(w http.ResponseWriter, r *http.Req
 }
 
 func (s *ApiServer) handleCreateComment(w http.ResponseWriter, r *http.Request) error {
+	postID, err := getID(r)
+	if err != nil {
+		return WriteJson(w, http.StatusBadRequest, err)
+	}
 	req := new(CreateCommentRequest)
 	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
 		return err
 	}
-	if err := s.Store.CreateComment(req); err != nil {
+	err = s.Store.CreateComment(postID, req)
+	if err != nil {
 		return err
 	}
 	return WriteJson(w, http.StatusOK, req)
@@ -436,7 +457,7 @@ func (s *ApiServer) handleCreateComment(w http.ResponseWriter, r *http.Request) 
 func (s *ApiServer) handleUpdateCommentByID(w http.ResponseWriter, r *http.Request) error {
 	id, err := getID(r)
 	if err != nil {
-		return err
+		return WriteJson(w, http.StatusBadRequest, err)
 	}
 
 	req := new(CreateCommentRequest)
@@ -480,16 +501,20 @@ func (s *ApiServer) handleLikeComment(w http.ResponseWriter, r *http.Request) er
 		return fmt.Errorf("Unexpected method %s", r.Method)
 	}
 
-	req := new(LikeRequest)
-	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
-		return fmt.Errorf("Error decoding request")
+	commentID, err := getID(r)
+	if err != nil {
+		return err
 	}
 
-	err := s.Store.LikeComment(req)
+	userID, err := getUserIDFromParams(r)
 	if err != nil {
-		return fmt.Errorf("Failed to store like comment: %v", req.ResourceID)
+		return err
 	}
-	return WriteJson(w, http.StatusOK, fmt.Sprintf("Liked post: %v successfuly", req.ResourceID))
+
+	if err := s.Store.LikeComment(userID, commentID); err != nil {
+		return fmt.Errorf("Failed to like comment: %v", commentID)
+	}
+	return WriteJson(w, http.StatusOK, fmt.Sprintf("Liked post: %v successfuly", commentID))
 }
 
 func (s *ApiServer) handleUnlikeComment(w http.ResponseWriter, r *http.Request) error {
@@ -497,16 +522,20 @@ func (s *ApiServer) handleUnlikeComment(w http.ResponseWriter, r *http.Request) 
 		return fmt.Errorf("Unexpected method %s", r.Method)
 	}
 
-	req := new(LikeRequest)
-	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
-		return fmt.Errorf("Error decoding request")
+	commentID, err := getID(r)
+	if err != nil {
+		return err
 	}
 
-	err := s.Store.LikeComment(req)
+	userID, err := getUserIDFromParams(r)
 	if err != nil {
-		return fmt.Errorf("Failed to store like comment: %v", req.ResourceID)
+		return err
 	}
-	return WriteJson(w, http.StatusOK, fmt.Sprintf("Unliked post: %v successfuly", req.ResourceID))
+
+	if err := s.Store.UnlikeComment(userID, commentID); err != nil {
+		return fmt.Errorf("Failed to unlike comment: %v", commentID)
+	}
+	return WriteJson(w, http.StatusOK, fmt.Sprintf("Unliked post: %v successfuly", commentID))
 }
 
 // HELPER FUNCTIONS
@@ -516,13 +545,28 @@ func WriteJson(w http.ResponseWriter, status int, v any) error {
 	return json.NewEncoder(w).Encode(v)
 }
 
-func getID(r *http.Request) (int, error) {
+func getID(r *http.Request) (int64, error) {
 	idStr := chi.URLParam(r, "id")
-	id, err := strconv.Atoi(idStr)
+	idInt, err := strconv.Atoi(idStr)
+	id := int64(idInt)
 	if err != nil {
-		return id, fmt.Errorf("Invalid id: %v", id)
+		return id, fmt.Errorf("Invalid id: %v", idStr)
 	}
 	return id, nil
+}
+
+func getUserIDFromParams(r *http.Request) (int64, error) {
+	userID_str := r.URL.Query().Get("userID")
+	if userID_str == "" {
+		return 0, fmt.Errorf("userID is required")
+	}
+	userID_int, err := strconv.Atoi(userID_str)
+	if err != nil {
+		return 0, err
+	}
+
+	userID := int64(userID_int)
+	return userID, nil
 }
 
 func getUserName(r *http.Request) string {

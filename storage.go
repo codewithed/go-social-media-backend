@@ -24,7 +24,7 @@ type Storage interface {
 	GetCommentsFromPost(postID int64) ([]*Comment, error)
 	GetPostLikes(postID int64) ([]string, error)
 	GetComment(id int64) (*Comment, error)
-	CreateComment(req *CreateCommentRequest) error
+	CreateComment(postID int64, req *CreateCommentRequest) error
 	DeleteComment(id int64) error
 	UpdateComment(id int64, req *CreateCommentRequest) error
 	GetFollowers(username string) ([]string, error)
@@ -60,6 +60,7 @@ func (s *PostgresStore) Init() error {
 	return s.CreateTables()
 }
 
+// UNIQUE (userID, postID) UNIQUE (userID, commentID)
 func (s *PostgresStore) CreateTables() error {
 	query := `CREATE TABLE IF NOT EXISTS users (
 		id SERIAL PRIMARY KEY,
@@ -342,7 +343,11 @@ func (s *PostgresStore) UpdatePost(id int64, req *CreatePostRequest) error {
 }
 
 func (s *PostgresStore) GetPostLikes(id int64) ([]string, error) {
-	rows, err := s.db.Query(`SELECT * from post_likes WHERE id = $1`, id)
+	rows, err := s.db.Query(`
+	SELECT users.userName
+		FROM post_likes
+		INNER JOIN users ON post_likes.userID = users.id
+		WHERE post_likes.postID = $1`, id)
 	if err != nil {
 		return nil, err
 	}
@@ -395,12 +400,11 @@ func (s *PostgresStore) GetComment(id int64) (*Comment, error) {
 	return nil, nil
 }
 
-func (s *PostgresStore) CreateComment(req *CreateCommentRequest) error {
-	_, err := s.db.Exec(`INSERT INTO comments (text, userID, postID, created_at) 
+func (s *PostgresStore) CreateComment(postID int64, req *CreateCommentRequest) error {
+	_, err := s.db.Exec(`INSERT INTO comments (userID, postID, content, created_at) 
 	VALUES ($1, $2, $3, $4)`,
-		req.Text,
-		req.UserName,
-		req.PostID, time.Now().UTC())
+		req.UserID,
+		postID, req.Text, time.Now().UTC())
 
 	return err
 }
@@ -411,16 +415,10 @@ func (s *PostgresStore) DeleteComment(id int64) error {
 }
 
 func (s *PostgresStore) UpdateComment(id int64, req *CreateCommentRequest) error {
-	if req.Text != "" {
-		_, err := s.db.Exec(`UPDATE comments SET text = $1 WHERE id = $2`,
-			req.Text, id)
+	_, err := s.db.Exec(`UPDATE comments SET content = $1 WHERE id = $2`,
+		req.Text, id)
 
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return err
 }
 
 // CRUD OPERATIONS FOR FOLLOWS
@@ -495,7 +493,8 @@ func (s *PostgresStore) DeleteFollow(req *FollowRequest) error {
 }
 
 func (s *PostgresStore) LikePost(userID, postID int64) error {
-	_, err := s.db.Exec(`INSERT INTO post_likes (userID, postID, created_at) VALUES($1, $2, $3)`,
+	_, err := s.db.Exec(`INSERT INTO post_likes (userID, postID, created_at)
+	 VALUES($1, $2, $3)`,
 		userID, postID, time.Now().UTC())
 	return err
 }
@@ -549,9 +548,9 @@ func ScanIntoComment(rows *sql.Rows) (*Comment, error) {
 	comment := new(Comment)
 	err := rows.Scan(
 		&comment.ID,
-		&comment.Text,
 		&comment.UserID,
 		&comment.PostID,
+		&comment.Text,
 		&comment.Created_at,
 	)
 

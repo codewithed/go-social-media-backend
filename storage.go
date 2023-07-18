@@ -76,7 +76,7 @@ func (s *PostgresStore) CreateTables() error {
 		userID BIGINT NOT NULL,
 		content VARCHAR(255) NOT NULL,
 		mediaUrl VARCHAR(10000),
-		created_at timestamptz NOT NULL
+		created_at timestamptz NOT NULL,
 		FOREIGN KEY (userID) REFERENCES users (id) ON DELETE CASCADE
 	);
 	

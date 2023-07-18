@@ -1,5 +1,5 @@
 .env
-**/bin/*
+**/bin
 /bin/
 bin/*
 draft.txt

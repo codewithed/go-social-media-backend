@@ -392,7 +392,7 @@ func (s *ApiServer) handleUnlikePost(w http.ResponseWriter, r *http.Request) err
 func makeHttpHandlerFunc(f apiFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := f(w, r); err != nil {
-			WriteJson(w, http.StatusBadRequest, fmt.Errorf(err.Error()))
+			WriteJson(w, http.StatusBadRequest, ApiError{Error: err.Error()})
 		}
 	}
 }
@@ -576,3 +576,7 @@ func getUserName(r *http.Request) string {
 
 // API-SPECIFIC TYPES
 type apiFunc func(http.ResponseWriter, *http.Request) error
+
+type ApiError struct {
+	Error string `json:"error"`
+}

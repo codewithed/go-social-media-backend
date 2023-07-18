@@ -75,8 +75,9 @@ func authoriseCurrentUser(handlerFunc http.HandlerFunc, s Storage) http.HandlerF
 	}
 }
 
-func permissionDenied(w http.ResponseWriter) error {
-	return WriteJson(w, http.StatusForbidden, fmt.Errorf("access denied"))
+func permissionDenied(w http.ResponseWriter) {
+	WriteJson(w, http.StatusForbidden, ApiError{Error: "permission denied"})
+	return
 
 }
 

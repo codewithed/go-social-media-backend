@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/golang-jwt/jwt/v4"
 	"golang.org/x/crypto/bcrypt"
@@ -12,7 +13,7 @@ import (
 func CreateJWT(user *User) (string, error) {
 	claims := &jwt.MapClaims{
 		"userID":    user.ID,
-		"expiresAt": 15000,
+		"expiresAt": time.Now().Add(time.Minute * 15),
 	}
 
 	secret := os.Getenv("JWT_SECRET")
@@ -23,6 +24,7 @@ func CreateJWT(user *User) (string, error) {
 func ValidateJWT(tokenString string) (*jwt.Token, error) {
 	secret := os.Getenv("JWT_SECRET")
 	return jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
+		// Check if the signing method is HMAC
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 		}
@@ -66,6 +68,14 @@ func authoriseCurrentUser(handlerFunc http.HandlerFunc, s Storage) http.HandlerF
 
 		// compare userID with that in the jwt token
 		claims := token.Claims.(jwt.MapClaims)
+
+		//check if token is expired	or not
+		exp := claims["expiresAt"].(time.Time)
+		if time.Now().After(exp) {
+			WriteJson(w, http.StatusUnauthorized, "token is expired, please refresh")
+			return
+		}
+
 		if user.ID != int64(claims["userID"].(float64)) {
 			permissionDenied(w)
 			return
@@ -76,9 +86,8 @@ func authoriseCurrentUser(handlerFunc http.HandlerFunc, s Storage) http.HandlerF
 }
 
 func permissionDenied(w http.ResponseWriter) {
-	WriteJson(w, http.StatusForbidden, ApiError{Error: "permission denied"})
+	WriteJson(w, http.StatusUnauthorized, ApiError{Error: "permission denied"})
 	return
-
 }
 
 func resourceBasedJWTauth(handlerfunc http.HandlerFunc, s Storage, resourceType string) http.HandlerFunc {
@@ -104,6 +113,13 @@ func resourceBasedJWTauth(handlerfunc http.HandlerFunc, s Storage, resourceType 
 
 		claims := token.Claims.(jwt.MapClaims)
 		userID := int64(claims["userID"].(float64))
+
+		//check if token is expired	or not
+		exp := claims["expiresAt"].(time.Time)
+		if time.Now().After(exp) {
+			WriteJson(w, http.StatusUnauthorized, "token is expired, please refresh")
+			return
+		}
 
 		ok, err := validateOwnership(userID, resourceID, resourceType, s)
 		if !ok {
@@ -131,6 +147,12 @@ func verifyUser(handlerFunc http.HandlerFunc, s Storage) http.HandlerFunc {
 		claims := token.Claims.(jwt.MapClaims)
 		userID := int64(claims["userID"].(float64))
 
+		//check if token is expired	or not
+		exp := claims["expiresAt"].(time.Time)
+		if time.Now().After(exp) {
+			WriteJson(w, http.StatusUnauthorized, "token is expired, please refresh")
+			return
+		}
 		if _, err := s.GetUserByID(userID); err != nil {
 			permissionDenied(w)
 			return

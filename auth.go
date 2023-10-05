@@ -72,7 +72,7 @@ func authoriseCurrentUser(handlerFunc http.HandlerFunc, s Storage) http.HandlerF
 		//check if token is expired	or not
 		exp := claims["expiresAt"].(time.Time)
 		if time.Now().After(exp) {
-			WriteJson(w, http.StatusUnauthorized, "token is expired, please refresh")
+			WriteJson(w, http.StatusUnauthorized, "token is expired")
 			return
 		}
 

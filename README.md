@@ -8,3 +8,4 @@ A social media backend built using Go
 - Chi router
 - PostgreSQL database
 - Docker
+- JWT tokens

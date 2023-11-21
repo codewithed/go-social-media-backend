@@ -12,7 +12,7 @@ A social media backend built using Go
 
 ## Features
 - CRUD operations for users, posts, comments, follows, likes, etc
-- Getting user profiles
+- Getting user profiles (including their bio, number of posts, followers, and following)
 - Certain actions require authorization to perform: 
  For example:
   - A user has to be the author of a post to delete or update it.

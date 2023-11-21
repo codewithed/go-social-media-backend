@@ -2,7 +2,7 @@
 
 A social media backend built using Go
 
-## Technologies
+## Technologies used
 
 - Go standard library
 - Chi router
@@ -10,7 +10,7 @@ A social media backend built using Go
 - Docker
 - JWT tokens
 
-## Features include:
+## Features
 - CRUD operations for users, posts, comments, follows, likes, etc
 - Getting user profiles
 - Certain actions require authorization to perform: 

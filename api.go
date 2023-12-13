@@ -95,7 +95,7 @@ func (s *ApiServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 		return WriteJson(w, http.StatusBadRequest, fmt.Errorf("access denied"))
 	}
 
-	token, err := CreateJWT(user)
+	token, err := CreateAccessToken(user)
 	if err != nil {
 		return err
 	}

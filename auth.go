@@ -10,7 +10,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func CreateJWT(user *User) (string, error) {
+func CreateAccessToken(user *User) (string, error) {
 	claims := &jwt.MapClaims{
 		"userID":    user.ID,
 		"expiresAt": time.Now().Add(time.Minute * 15),
@@ -117,7 +117,7 @@ func resourceBasedJWTauth(handlerfunc http.HandlerFunc, s Storage, resourceType 
 		//check if token is expired	or not
 		exp := claims["expiresAt"].(time.Time)
 		if time.Now().After(exp) {
-			WriteJson(w, http.StatusUnauthorized, "token is expired, please refresh")
+			WriteJson(w, http.StatusUnauthorized, "token is expired, please log in again")
 			return
 		}
 
@@ -175,6 +175,7 @@ func validateOwnership(userID, resourceID int64, resourceType string, s Storage)
 		}
 		return true, nil
 	}
+
 	if resourceType == "comment" {
 		comment, err := s.GetComment(resourceID)
 		if err != nil {

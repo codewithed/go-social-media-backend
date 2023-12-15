@@ -17,3 +17,17 @@ A social media backend built using Go
  For example:
   - A user has to be the author of a post to delete or update it.
   - Users have to create an account before they can like or comment on a post.
+
+ ## Local setup
+ ```
+git clone https://github.com/codewithed/go-social-media-backend.git
+cd go-social-media backend
+```
+### Build command
+```
+make build
+```
+### Run command
+```
+make run
+```

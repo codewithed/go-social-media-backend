@@ -92,6 +92,15 @@ type LoginResponse struct {
 	Token    string `json:"token"`
 }
 
+type Session struct {
+	ID             string    `json:"id"`
+	UserID         int       `json:"user_id"`
+	RefreshToken   string    `json:"refresh_token"`
+	ExpirationTime time.Time `json:"expiration_time"`
+	IsBlocked      bool      `json:"id_blocked"`
+	CreatedAt      time.Time `json:"created_at"`
+}
+
 func NewUser(req *CreateUserRequest) (*User, error) {
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -107,17 +116,4 @@ func NewUser(req *CreateUserRequest) (*User, error) {
 		PasswordHash: string(passwordHash),
 		Created_at:   time.Now().UTC(),
 	}, nil
-}
-
-func (user *User) ValidPassword(pw string) bool {
-	return bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(pw)) == nil
-}
-
-type Session struct {
-	ID             string    `json:"id"`
-	UserID         int       `json:"user_id"`
-	RefreshToken   string    `json:"refresh_token"`
-	ExpirationTime time.Time `json:"expiration_time"`
-	IsBlocked      bool      `json:"id_blocked"`
-	CreatedAt      time.Time `json:"created_at"`
 }

@@ -191,3 +191,7 @@ func validateOwnership(userID, resourceID int64, resourceType string, s Storage)
 	}
 	return false, fmt.Errorf("Invalid resource type: %v", resourceType)
 }
+
+func (user *User) ValidPassword(pw string) bool {
+	return bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(pw)) == nil
+}

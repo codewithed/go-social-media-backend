@@ -32,6 +32,8 @@ A social media backend built using Go
 git clone https://github.com/codewithed/go-social-media-backend.git
 cd go-social-media backend
 ```
+### Prerequisites
+- Docker
 
 ### Setup Postgres Database
 

@@ -7,6 +7,7 @@ A social media backend built using Go
 - Go standard library
 - Chi router
 - PostgreSQL database
+- BCrypt
 - Docker
 - JWT tokens
 
@@ -32,7 +33,11 @@ git clone https://github.com/codewithed/go-social-media-backend.git
 cd go-social-media backend
 ```
 
-Setup environment variables following the guide of the .env.example file
+### Setup Postgres Database
+
+``` bash
+make postgres
+```
 
 ### Build command
 

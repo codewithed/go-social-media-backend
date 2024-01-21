@@ -30,23 +30,23 @@ func (s *ApiServer) Run() {
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"message": "welcome"}`))
 	})
-	r.HandleFunc("/signup", makeHttpHandlerFunc(s.handleSignUp))                                                        //tested
-	r.HandleFunc("/login", makeHttpHandlerFunc(s.handleLogin))                                                          //tested
-	r.HandleFunc("/{username}", makeHttpHandlerFunc(s.handleUsersByName))                                               //tested
-	r.Get("/{username}/posts", verifyUser(makeHttpHandlerFunc(s.handleUserPosts), s.Store))                             //tested
-	r.Post("/{username}/posts", authoriseCurrentUser(makeHttpHandlerFunc(s.handleUserPosts), s.Store))                  //tested
-	r.HandleFunc("/{username}/followers", makeHttpHandlerFunc(s.handleGetFollowers))                                    //tested
-	r.HandleFunc("/{username}/following", makeHttpHandlerFunc(s.handleGetFollowing))                                    //tested
-	r.HandleFunc("/{username}/follow", authoriseCurrentUser(makeHttpHandlerFunc(s.handleFollow), s.Store))              //tested
-	r.HandleFunc("/{username}/unfollow", authoriseCurrentUser(makeHttpHandlerFunc(s.handleUnfollow), s.Store))          //tested
-	r.HandleFunc("/posts/{id}", resourceBasedJWTauth(makeHttpHandlerFunc(s.handlePostsByID), s.Store, "post"))          //tested
-	r.HandleFunc("/posts/{id}/like", verifyUser(makeHttpHandlerFunc(s.handleLikePost), s.Store))                        //tested
-	r.HandleFunc("/posts/{id}/unlike", verifyUser(makeHttpHandlerFunc(s.handleUnlikePost), s.Store))                    //tested
-	r.HandleFunc("/posts/{id}/likes", verifyUser(makeHttpHandlerFunc(s.handleGetPostlikes), s.Store))                   //tested
-	r.HandleFunc("/posts/{id}/comments", verifyUser(makeHttpHandlerFunc(s.handlePostComments), s.Store))                //tested
-	r.HandleFunc("/comments/{id}", resourceBasedJWTauth(makeHttpHandlerFunc(s.handleCommentsByID), s.Store, "comment")) //tested
-	r.HandleFunc("/comments/{id}/like", verifyUser(makeHttpHandlerFunc(s.handleLikeComment), s.Store))                  //tested
-	r.HandleFunc("/comments/{id}/unlike", verifyUser(makeHttpHandlerFunc(s.handleUnlikeComment), s.Store))              //tested
+	r.HandleFunc("/signup", makeHttpHandlerFunc(s.handleSignUp))
+	r.HandleFunc("/login", makeHttpHandlerFunc(s.handleLogin))
+	r.HandleFunc("/{username}", makeHttpHandlerFunc(s.handleUsersByName))
+	r.Get("/{username}/posts", verifyUser(makeHttpHandlerFunc(s.handleUserPosts), s.Store))
+	r.Post("/{username}/posts", authoriseCurrentUser(makeHttpHandlerFunc(s.handleUserPosts), s.Store))
+	r.HandleFunc("/{username}/followers", makeHttpHandlerFunc(s.handleGetFollowers))
+	r.HandleFunc("/{username}/following", makeHttpHandlerFunc(s.handleGetFollowing))
+	r.HandleFunc("/{username}/follow", authoriseCurrentUser(makeHttpHandlerFunc(s.handleFollow), s.Store))
+	r.HandleFunc("/{username}/unfollow", authoriseCurrentUser(makeHttpHandlerFunc(s.handleUnfollow), s.Store))
+	r.HandleFunc("/posts/{id}", resourceBasedJWTauth(makeHttpHandlerFunc(s.handlePostsByID), s.Store, "post"))
+	r.HandleFunc("/posts/{id}/like", verifyUser(makeHttpHandlerFunc(s.handleLikePost), s.Store))
+	r.HandleFunc("/posts/{id}/unlike", verifyUser(makeHttpHandlerFunc(s.handleUnlikePost), s.Store))
+	r.HandleFunc("/posts/{id}/likes", verifyUser(makeHttpHandlerFunc(s.handleGetPostlikes), s.Store))
+	r.HandleFunc("/posts/{id}/comments", verifyUser(makeHttpHandlerFunc(s.handlePostComments), s.Store))
+	r.HandleFunc("/comments/{id}", resourceBasedJWTauth(makeHttpHandlerFunc(s.handleCommentsByID), s.Store, "comment"))
+	r.HandleFunc("/comments/{id}/like", verifyUser(makeHttpHandlerFunc(s.handleLikeComment), s.Store))
+	r.HandleFunc("/comments/{id}/unlike", verifyUser(makeHttpHandlerFunc(s.handleUnlikeComment), s.Store))
 	err := http.ListenAndServe(s.ListenAddr, r)
 	if err != nil {
 		log.Fatal(err)

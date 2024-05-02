@@ -60,6 +60,7 @@ func (s *PostgresStore) Init() error {
 	return s.CreateTables()
 }
 
+// CREATE DATABASE TABLES
 func (s *PostgresStore) CreateTables() error {
 	query := `CREATE TABLE IF NOT EXISTS users (
 		id SERIAL PRIMARY KEY,
@@ -124,6 +125,7 @@ func (s *PostgresStore) CreateTables() error {
 }
 
 // CRUD OPERATIONS FOR USERS
+
 func (s *PostgresStore) GetUserByName(name string) (*User, error) {
 	user_id, err := s.getUserIDFromUserName(name)
 	if err != nil || user_id == 0 {
@@ -289,7 +291,7 @@ func (s *PostgresStore) GetUserPosts(username string) ([]*Post, error) {
 	for rows.Next() {
 		post, err := ScanIntoPost(rows)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to scan post row: %v", err)
+			return nil, fmt.Errorf("failed to scan post row: %v", err)
 		}
 		posts = append(posts, post)
 	}

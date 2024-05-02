@@ -26,7 +26,7 @@ func ValidateJWT(tokenString string) (*jwt.Token, error) {
 	return jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 		// Check if the signing method is HMAC
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 
 		return []byte(secret), nil
@@ -87,7 +87,6 @@ func authoriseCurrentUser(handlerFunc http.HandlerFunc, s Storage) http.HandlerF
 
 func permissionDenied(w http.ResponseWriter) {
 	WriteJson(w, http.StatusUnauthorized, ApiError{Error: "permission denied"})
-	return
 }
 
 func resourceBasedJWTauth(handlerfunc http.HandlerFunc, s Storage, resourceType string) http.HandlerFunc {
@@ -121,7 +120,7 @@ func resourceBasedJWTauth(handlerfunc http.HandlerFunc, s Storage, resourceType 
 			return
 		}
 
-		ok, err := validateOwnership(userID, resourceID, resourceType, s)
+		ok, _ := validateOwnership(userID, resourceID, resourceType, s)
 		if !ok {
 			permissionDenied(w)
 			return
@@ -168,7 +167,7 @@ func validateOwnership(userID, resourceID int64, resourceType string, s Storage)
 			return false, err
 		}
 		if post == nil {
-			return false, fmt.Errorf("Couldn't get post")
+			return false, fmt.Errorf("couldn't get post")
 		}
 		if post.UserID != int64(userID) {
 			return false, nil
@@ -182,14 +181,14 @@ func validateOwnership(userID, resourceID int64, resourceType string, s Storage)
 			return false, err
 		}
 		if comment == nil {
-			return false, fmt.Errorf("Couldn't get comment")
+			return false, fmt.Errorf("couldn't get comment")
 		}
 		if comment.UserID != int64(userID) {
 			return false, nil
 		}
 		return true, nil
 	}
-	return false, fmt.Errorf("Invalid resource type: %v", resourceType)
+	return false, fmt.Errorf("invalid resource type: %v", resourceType)
 }
 
 func (user *User) ValidPassword(pw string) bool {

@@ -2,7 +2,6 @@ package main
 
 import (
 	"math/rand"
-	"os"
 	"testing"
 	"time"
 
@@ -20,60 +19,62 @@ var (
 	}
 )
 
-func init() {
-	// set JWT_SECRET for tests
-	os.Setenv("JWT_SECRET", "test-secret")
-}
-
 func TestCreateAccessToken(t *testing.T) {
+	// Call CreateAccessToken function
 	tokenString, err := CreateAccessToken(&user)
 	if err != nil {
-		t.Fatalf("CreateAccessToken returned an error: %v", err)
+		t.Errorf("CreateAccessToken returned an error: %v", err)
 	}
 
+	// Parse the token
+	secret := []byte(getTestSecret())
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		return []byte(os.Getenv("JWT_SECRET")), nil
+		return secret, nil
 	})
 	if err != nil {
 		t.Fatalf("failed to parse token: %v", err)
 	}
 
+	// Check if the token is valid
 	if !token.Valid {
-		t.Fatal("Generated token is not valid")
+		t.Error("Generated token is not valid")
 	}
 
+	// Check if the userID claim is correct
 	claims := token.Claims.(jwt.MapClaims)
-
-	// userID check
 	userID := int64(claims["userID"].(float64))
 	if userID != user.ID {
 		t.Errorf("UserID claim is incorrect. Expected: %d, Got: %d", user.ID, userID)
 	}
 
-	// exp check
+	// Check if the exp claim is within ~15 minutes
 	expUnix := int64(claims["exp"].(float64))
 	expiresAt := time.Unix(expUnix, 0)
+	expected := time.Now().Add(15 * time.Minute)
 
-	if time.Now().Add(15*time.Minute).Before(expiresAt) == false {
-		t.Error("ExpiresAt claim is not within 15 minutes")
+	// allow ±10s drift
+	diff := expected.Sub(expiresAt)
+	if diff > 10*time.Second || diff < -10*time.Second {
+		t.Errorf("ExpiresAt claim mismatch. Expected around: %v, Got: %v", expected, expiresAt)
 	}
 }
 
 func TestValidateJWT(t *testing.T) {
-	tokenString, err := CreateAccessToken(&user)
-	if err != nil {
-		t.Fatalf("CreateAccessToken returned an error: %v", err)
-	}
+	// Create a token for the mock user
+	tokenString, _ := CreateAccessToken(&user)
 
+	// Call ValidateJWT function with the generated token
 	token, err := ValidateJWT(tokenString)
 	if err != nil {
-		t.Fatalf("ValidateJWT returned an error: %v", err)
+		t.Errorf("ValidateJWT returned an error: %v", err)
 	}
 
+	// Check if the token is valid
 	if !token.Valid {
-		t.Fatal("Validated token is not valid")
+		t.Error("Validated token is not valid")
 	}
 
+	// Check if the token's userID claim is correct
 	claims := token.Claims.(jwt.MapClaims)
 	userID := int64(claims["userID"].(float64))
 	if userID != user.ID {
@@ -82,18 +83,28 @@ func TestValidateJWT(t *testing.T) {
 }
 
 func TestGenerateHash(t *testing.T) {
+	// Define a password for testing
 	password := "test_password"
 
+	// Call generateHash function
 	hashedPassword, err := generateHash(password)
 	if err != nil {
-		t.Fatalf("generateHash returned an error: %v", err)
+		t.Errorf("generateHash returned an error: %v", err)
 	}
 
+	// Check if the hashed password is not empty
 	if len(hashedPassword) == 0 {
 		t.Error("Hashed password is empty")
 	}
 
+	// Check if the hashed password is different from the original password
 	if hashedPassword == password {
 		t.Error("Hashed password is the same as the original password")
 	}
+}
+
+// helper to provide a consistent JWT secret for tests
+func getTestSecret() string {
+	secret := "test_secret"
+	return secret
 }

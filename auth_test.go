@@ -8,6 +8,11 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
+func init() {
+	// Ensure tests always use the same secret
+	os.Setenv("JWT_SECRET", "test_secret")
+}
+
 var (
 	user = User{
 		ID:         int64(rand.Intn(10000)),

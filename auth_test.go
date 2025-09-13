@@ -43,7 +43,12 @@ func TestCreateAccessToken(t *testing.T) {
 	}
 
 	// Check if the expiresAt claim is within 15 minutes
-	expiresAt := claims["expiresAt"].(time.Time)
+	expStr := claims["exp"].(string)
+    expiresAt, err := time.Parse(time.RFC3339, expStr)
+    if err != nil {
+    	t.Fatal("could not parse exp claim:", err)
+	}
+
 	if time.Now().Add(time.Minute * 15).After(expiresAt) {
 		t.Error("ExpiresAt claim is not within 15 minutes")
 	}
